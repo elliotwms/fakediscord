@@ -1,4 +1,4 @@
-package fake_discord
+package fakediscord
 
 import (
 	"log"

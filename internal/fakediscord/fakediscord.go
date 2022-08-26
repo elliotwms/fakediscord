@@ -1,18 +1,11 @@
-package fake_discord
+package fakediscord
 
 import (
-	"github.com/bwmarrin/discordgo"
 	"github.com/gin-gonic/gin"
 	"net/http"
 )
 
-func OverrideEndpoints() {
-	discordgo.EndpointDiscord = "http://localhost:8080/"
-	discordgo.EndpointAPI = discordgo.EndpointDiscord + "api/v" + discordgo.APIVersion + "/"
-	discordgo.EndpointGateway = discordgo.EndpointAPI + "gateway"
-}
-
-func ServeAPI() error {
+func Run() error {
 	router := gin.Default()
 
 	router.GET("/api/v9/gateway", getGateway)
@@ -21,6 +14,8 @@ func ServeAPI() error {
 	return router.Run("localhost:8080")
 }
 
+// https://discord.com/developers/docs/topics/gateway#get-gateway
+// overrides to provide a shim to the local websocket handler, handleWS
 func getGateway(c *gin.Context) {
 	c.JSON(http.StatusOK, struct {
 		URL string `json:"url"`
