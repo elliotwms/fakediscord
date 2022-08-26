@@ -2,11 +2,8 @@ package fakediscord
 
 import (
 	"testing"
-	"time"
 
-	"github.com/bwmarrin/discordgo"
 	"github.com/elliotwms/fake-discord/pkg/fakediscord"
-	"github.com/stretchr/testify/require"
 )
 
 func TestMain(m *testing.M) {
@@ -22,24 +19,15 @@ func TestMain(m *testing.M) {
 }
 
 func TestSessionConnects(t *testing.T) {
-	s := buildSession(t)
+	given, when, then := NewStage(t)
 
-	ready := false
-	s.AddHandler(func(s *discordgo.Session, _ *discordgo.Ready) {
-		ready = true
-	})
+	given.
+		a_new_session().and().
+		the_session_watches_for_ready_events()
 
-	require.NoError(t, s.Open())
-	require.Eventually(t, func() bool {
-		return ready
-	}, 1*time.Second, 10*time.Millisecond, "Ready event should eventually be fired")
-}
+	when.
+		the_session_is_opened()
 
-func buildSession(t *testing.T) *discordgo.Session {
-	s, err := discordgo.New("Bot token")
-	s.LogLevel = discordgo.LogDebug
-	require.NoError(t, err)
-	require.NotNil(t, s)
-
-	return s
+	then.
+		the_session_is_ready()
 }
