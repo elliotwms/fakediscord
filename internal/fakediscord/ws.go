@@ -16,10 +16,10 @@ var upgrader = websocket.Upgrader{
 }
 
 type Event struct {
-	Operation int         `json:"op"`
-	Sequence  int64       `json:"s"`
-	Type      string      `json:"t"`
-	Data      interface{} `json:"d"`
+	Operation int    `json:"op"`
+	Sequence  int64  `json:"s"`
+	Type      string `json:"t"`
+	Data      any    `json:"d"`
 }
 
 type helloOp struct {
