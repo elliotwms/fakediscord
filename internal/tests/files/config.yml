@@ -1,0 +1,6 @@
+guilds:
+  - name: Test Guild
+    channels:
+      - foo
+      - bar
+      - baz

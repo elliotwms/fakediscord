@@ -1,0 +1,34 @@
+package fakediscord
+
+import (
+	"github.com/bwmarrin/discordgo"
+	"github.com/bwmarrin/snowflake"
+	"github.com/gorilla/websocket"
+	"log"
+)
+
+func ready(ws *websocket.Conn) error {
+	log.Print("sending READY")
+
+	return ws.WriteJSON(Event{
+		Type:     "READY",
+		Sequence: 1,
+		Data:     buildReady(),
+	})
+}
+
+func buildReady() discordgo.Ready {
+	r := discordgo.Ready{}
+
+	guilds.Range(func(key, value any) bool {
+		r.Guilds = append(r.Guilds, &discordgo.Guild{
+			// READY returns a stripped down guild containing just the ID and availability
+			ID:          key.(snowflake.ID).String(),
+			Unavailable: true,
+		})
+
+		return true
+	})
+
+	return r
+}

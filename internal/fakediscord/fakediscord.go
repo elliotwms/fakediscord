@@ -1,11 +1,38 @@
 package fakediscord
 
 import (
-	"github.com/gin-gonic/gin"
 	"net/http"
+
+	"github.com/bwmarrin/snowflake"
+	"github.com/elliotwms/fake-discord/pkg/config"
+	"github.com/gin-gonic/gin"
 )
 
-func Run() error {
+var node *snowflake.Node
+
+func Run(c config.Config) error {
+	if err := setupNode(0); err != nil { // todo set node ID
+		return err
+	}
+
+	if err := importConfig(c); err != nil {
+		return err
+	}
+
+	return setupRouter()
+}
+
+func setupNode(i int64) (err error) {
+	node, err = snowflake.NewNode(i)
+
+	return
+}
+
+func importConfig(c config.Config) error {
+	return buildTestGuilds(c.Guilds)
+}
+
+func setupRouter() error {
 	router := gin.Default()
 
 	router.GET("/api/v9/gateway", getGateway)

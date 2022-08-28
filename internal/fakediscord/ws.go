@@ -72,15 +72,11 @@ func establishConnection(ws *websocket.Conn) error {
 		return err
 	}
 
-	log.Print("sending READY")
-	err = ws.WriteJSON(Event{
-		Type:     "READY",
-		Sequence: 1,
-		Data:     discordgo.Ready{}},
-	)
-	if err != nil {
+	if err = ready(ws); err != nil {
 		return err
 	}
+
+	go sendSignOnGuildCreateEvents(ws)
 
 	return nil
 }
