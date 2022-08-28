@@ -3,6 +3,7 @@ package fakediscord
 import (
 	"github.com/bwmarrin/discordgo"
 	"github.com/bwmarrin/snowflake"
+	"github.com/elliotwms/fake-discord/pkg/sequence"
 	"github.com/gorilla/websocket"
 	"log"
 )
@@ -12,7 +13,7 @@ func ready(ws *websocket.Conn) error {
 
 	return ws.WriteJSON(Event{
 		Type:     "READY",
-		Sequence: 1,
+		Sequence: sequence.Next(),
 		Data:     buildReady(),
 	})
 }

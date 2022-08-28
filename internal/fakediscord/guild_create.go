@@ -2,6 +2,7 @@ package fakediscord
 
 import (
 	"github.com/bwmarrin/discordgo"
+	"github.com/elliotwms/fake-discord/pkg/sequence"
 	"github.com/gorilla/websocket"
 	"log"
 )
@@ -18,7 +19,7 @@ func guildCreate(ws *websocket.Conn, g discordgo.Guild) {
 	log.Print("SENDING GUILD_CREATE")
 
 	err := ws.WriteJSON(Event{
-		Sequence: 1,
+		Sequence: sequence.Next(),
 		Type:     "GUILD_CREATE",
 		Data: discordgo.GuildCreate{
 			Guild: &g,
@@ -28,5 +29,4 @@ func guildCreate(ws *websocket.Conn, g discordgo.Guild) {
 	if err != nil {
 		panic(err)
 	}
-
 }
