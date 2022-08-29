@@ -1,11 +1,12 @@
 package fakediscord
 
 import (
+	"log"
+
 	"github.com/bwmarrin/discordgo"
 	"github.com/bwmarrin/snowflake"
-	"github.com/elliotwms/fake-discord/pkg/sequence"
+	"github.com/elliotwms/fake-discord/internal/sequence"
 	"github.com/gorilla/websocket"
-	"log"
 )
 
 func ready(ws *websocket.Conn) error {

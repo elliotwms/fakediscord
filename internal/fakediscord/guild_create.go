@@ -1,10 +1,11 @@
 package fakediscord
 
 import (
-	"github.com/bwmarrin/discordgo"
-	"github.com/elliotwms/fake-discord/pkg/sequence"
-	"github.com/gorilla/websocket"
 	"log"
+
+	"github.com/bwmarrin/discordgo"
+	"github.com/elliotwms/fake-discord/internal/sequence"
+	"github.com/gorilla/websocket"
 )
 
 func sendSignOnGuildCreateEvents(ws *websocket.Conn) {
