@@ -1,13 +1,17 @@
-package fakediscord
+package api
 
 import (
+	internalws "github.com/elliotwms/fake-discord/internal/fakediscord/ws"
 	"log"
 	"net/http"
 
-	internalws "github.com/elliotwms/fake-discord/internal/ws"
 	"github.com/gin-gonic/gin"
 	"github.com/gorilla/websocket"
 )
+
+func WebsocketController(r *gin.RouterGroup) {
+	r.GET("/", handleWS)
+}
 
 var upgrader = websocket.Upgrader{
 	ReadBufferSize:  1024,

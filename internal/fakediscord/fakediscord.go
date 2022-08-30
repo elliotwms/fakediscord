@@ -1,10 +1,9 @@
 package fakediscord
 
 import (
-	"net/http"
-
+	"github.com/elliotwms/fake-discord/internal/fakediscord/api"
+	"github.com/elliotwms/fake-discord/internal/fakediscord/storage"
 	"github.com/elliotwms/fake-discord/internal/snowflake"
-	"github.com/elliotwms/fake-discord/internal/storage"
 	"github.com/elliotwms/fake-discord/pkg/config"
 	"github.com/gin-gonic/gin"
 )
@@ -28,18 +27,8 @@ func importConfig(c config.Config) error {
 func setupRouter() error {
 	router := gin.Default()
 
-	router.GET("/api/v9/gateway", getGateway)
-	router.GET("/ws/", handleWS)
+	api.GatewayController(router.Group("api/v9/gateway"))
+	api.WebsocketController(router.Group("ws"))
 
 	return router.Run("localhost:8080")
-}
-
-// https://discord.com/developers/docs/topics/gateway#get-gateway
-// overrides to provide a shim to the local websocket handler, handleWS
-func getGateway(c *gin.Context) {
-	c.JSON(http.StatusOK, struct {
-		URL string `json:"url"`
-	}{
-		"ws://localhost:8080/ws",
-	})
 }
