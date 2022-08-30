@@ -11,5 +11,9 @@ func Configure(nodeID int64) (err error) {
 }
 
 func Generate() snowflake.ID {
+	if node == nil {
+		panic("snowflake.Generate called before snowflake.Configure")
+	}
+
 	return node.Generate()
 }
