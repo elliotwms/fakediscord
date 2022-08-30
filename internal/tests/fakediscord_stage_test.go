@@ -103,7 +103,7 @@ func (s *stage) the_session_receives_n_guild_create_events(n int) *stage {
 	return s
 }
 
-func (s *stage) an_established_session() *stage {
+func (s *stage) an_established_session() *stage { //nolint:unused
 	return s.
 		a_new_session().and().
 		the_session_watches_for_ready_events().and().
