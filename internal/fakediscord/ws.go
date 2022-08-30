@@ -3,9 +3,8 @@ package fakediscord
 import (
 	"log"
 	"net/http"
-	"time"
 
-	"github.com/bwmarrin/discordgo"
+	internalws "github.com/elliotwms/fake-discord/internal/ws"
 	"github.com/gin-gonic/gin"
 	"github.com/gorilla/websocket"
 )
@@ -13,17 +12,6 @@ import (
 var upgrader = websocket.Upgrader{
 	ReadBufferSize:  1024,
 	WriteBufferSize: 1024,
-}
-
-type Event struct {
-	Operation int    `json:"op"`
-	Sequence  int64  `json:"s"`
-	Type      string `json:"t"`
-	Data      any    `json:"d"`
-}
-
-type helloOp struct {
-	HeartbeatInterval time.Duration `json:"heartbeat_interval"`
 }
 
 func handleWS(c *gin.Context) {
@@ -41,54 +29,9 @@ func handleWS(c *gin.Context) {
 		}
 	}()
 
-	if err = establishConnection(ws); err != nil {
-		log.Printf("error establishing connection: %s", err)
+	if err = internalws.Handle(ws); err != nil {
+		log.Printf("error handling message: %s", err)
 		c.AbortWithStatus(http.StatusInternalServerError)
 	}
 
-	for {
-		if err := handleMessage(ws); err != nil {
-			log.Printf("error handling message: %s", err)
-			c.AbortWithStatus(http.StatusInternalServerError)
-		}
-	}
-}
-
-func establishConnection(ws *websocket.Conn) error {
-	log.Print("establishing connection")
-	err := ws.WriteJSON(Event{
-		Operation: 10,
-		Data:      helloOp{HeartbeatInterval: 10 * time.Second},
-	})
-	if err != nil {
-		return err
-	}
-
-	log.Print("waiting for identify")
-
-	i := Event{Data: discordgo.Identify{}}
-	err = ws.ReadJSON(&i)
-	if err != nil {
-		return err
-	}
-
-	if err = ready(ws); err != nil {
-		return err
-	}
-
-	go sendSignOnGuildCreateEvents(ws)
-
-	return nil
-}
-
-func handleMessage(ws *websocket.Conn) error {
-	var e Event
-
-	err := ws.ReadJSON(&e)
-	if err != nil {
-		return err
-	}
-
-	log.Printf("read message %d, %v", e.Operation, e.Data)
-	return nil
 }

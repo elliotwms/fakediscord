@@ -1,11 +1,11 @@
-package fakediscord
+package ws
 
 import (
 	"log"
 
 	"github.com/bwmarrin/discordgo"
-	"github.com/bwmarrin/snowflake"
 	"github.com/elliotwms/fake-discord/internal/sequence"
+	"github.com/elliotwms/fake-discord/internal/storage"
 	"github.com/gorilla/websocket"
 )
 
@@ -22,10 +22,10 @@ func ready(ws *websocket.Conn) error {
 func buildReady() discordgo.Ready {
 	r := discordgo.Ready{}
 
-	guilds.Range(func(key, value any) bool {
+	storage.Guilds.Range(func(key, value any) bool {
 		r.Guilds = append(r.Guilds, &discordgo.Guild{
 			// READY returns a stripped down guild containing just the ID and availability
-			ID:          key.(snowflake.ID).String(),
+			ID:          key.(string),
 			Unavailable: true,
 		})
 

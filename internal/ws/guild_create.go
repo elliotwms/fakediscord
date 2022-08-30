@@ -1,15 +1,16 @@
-package fakediscord
+package ws
 
 import (
 	"log"
 
 	"github.com/bwmarrin/discordgo"
 	"github.com/elliotwms/fake-discord/internal/sequence"
+	"github.com/elliotwms/fake-discord/internal/storage"
 	"github.com/gorilla/websocket"
 )
 
 func sendSignOnGuildCreateEvents(ws *websocket.Conn) {
-	guilds.Range(func(key, value any) bool {
+	storage.Guilds.Range(func(key, value any) bool {
 		guildCreate(ws, value.(discordgo.Guild))
 
 		return true

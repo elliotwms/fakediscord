@@ -3,15 +3,14 @@ package fakediscord
 import (
 	"net/http"
 
-	"github.com/bwmarrin/snowflake"
+	"github.com/elliotwms/fake-discord/internal/snowflake"
+	"github.com/elliotwms/fake-discord/internal/storage"
 	"github.com/elliotwms/fake-discord/pkg/config"
 	"github.com/gin-gonic/gin"
 )
 
-var node *snowflake.Node
-
 func Run(c config.Config) error {
-	if err := setupNode(0); err != nil { // todo set node ID
+	if err := snowflake.Configure(0); err != nil { // todo set node ID
 		return err
 	}
 
@@ -22,14 +21,8 @@ func Run(c config.Config) error {
 	return setupRouter()
 }
 
-func setupNode(i int64) (err error) {
-	node, err = snowflake.NewNode(i)
-
-	return
-}
-
 func importConfig(c config.Config) error {
-	return buildTestGuilds(c.Guilds)
+	return storage.BuildTestGuilds(c.Guilds)
 }
 
 func setupRouter() error {
