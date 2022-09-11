@@ -9,5 +9,10 @@ type Config struct {
 type Guild struct {
 	ID       *snowflake.ID `yaml:"id,omitempty"`
 	Name     string        `yaml:"name"`
-	Channels []string      `yaml:"channels"`
+	Channels []Channel     `yaml:"channels"`
+}
+
+type Channel struct {
+	ID   *snowflake.ID `yaml:"id,omitempty"`
+	Name string        `yaml:"name"`
 }

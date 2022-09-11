@@ -1,11 +1,12 @@
 package api
 
 import (
-	"github.com/gin-gonic/gin"
 	"net/http"
+
+	"github.com/gin-gonic/gin"
 )
 
-func GatewayController(r *gin.RouterGroup) {
+func gatewayController(r *gin.RouterGroup) {
 	r.GET("/", getGateway)
 }
 

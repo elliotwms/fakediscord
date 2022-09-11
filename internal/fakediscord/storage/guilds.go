@@ -19,25 +19,32 @@ func BuildTestGuilds(cgs []config.Guild) error {
 	return nil
 }
 
-func buildTestGuild(c config.Guild) discordgo.Guild {
-	g := discordgo.Guild{
+func buildTestGuild(g config.Guild) discordgo.Guild {
+	guild := discordgo.Guild{
+		ID:   snowflake.Generate().String(),
+		Name: g.Name,
+	}
+
+	if g.ID != nil {
+		guild.ID = g.ID.String()
+	}
+
+	for _, cc := range g.Channels {
+		guild.Channels = append(guild.Channels, buildTestChannel(cc))
+	}
+
+	return guild
+}
+
+func buildTestChannel(c config.Channel) *discordgo.Channel {
+	channel := &discordgo.Channel{
+		ID:   snowflake.Generate().String(),
 		Name: c.Name,
 	}
 
 	if c.ID != nil {
-		g.ID = c.ID.String()
-	} else {
-		g.ID = snowflake.Generate().String()
+		channel.ID = c.ID.String()
 	}
 
-	for _, cc := range c.Channels {
-		channel := &discordgo.Channel{
-			ID:   snowflake.Generate().String(),
-			Name: cc,
-		}
-
-		g.Channels = append(g.Channels, channel)
-	}
-
-	return g
+	return channel
 }

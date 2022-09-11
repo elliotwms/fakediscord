@@ -17,6 +17,20 @@ func TestSession_Connects(t *testing.T) {
 
 	then.
 		the_session_is_ready().and().
-		the_ready_has_n_guilds(1).and().
-		the_session_receives_n_guild_create_events(1)
+		the_ready_has_n_guilds(2).and().
+		the_session_receives_n_guild_create_events(2)
+}
+
+func TestSession_CreateMessage(t *testing.T) {
+	given, when, then := NewStage(t)
+
+	given.
+		an_established_session().and().
+		the_session_watches_for_message_created_events()
+
+	when.
+		a_message_is_created()
+
+	then.
+		n_message_created_events_are_received(1)
 }

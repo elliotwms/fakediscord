@@ -13,6 +13,8 @@ func Handle(ws *websocket.Conn) error {
 		return err
 	}
 
+	register(ws)
+
 	for {
 		if err := handleMessage(ws); err != nil {
 			return err

@@ -1,6 +1,9 @@
 guilds:
   - name: Test Guild
     channels:
-      - foo
-      - bar
-      - baz
+      - name: foo
+      - name: bar
+      - name: baz
+  - name: Second guild
+    channels:
+      - name: bux

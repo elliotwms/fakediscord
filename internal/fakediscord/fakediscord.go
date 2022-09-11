@@ -27,8 +27,12 @@ func importConfig(c config.Config) error {
 func setupRouter() error {
 	router := gin.Default()
 
-	api.GatewayController(router.Group("api/v9/gateway"))
+	// register a shim to override the websocket
 	api.WebsocketController(router.Group("ws"))
+
+	// mock the HTTP api
+	v9 := router.Group("api/v9")
+	api.Configure(v9)
 
 	return router.Run("localhost:8080")
 }

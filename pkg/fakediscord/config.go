@@ -8,10 +8,12 @@ func Configure(baseURL string) {
 
 // overrideEndpoints overrides the package global endpoints in bwmarrin/discordgo, in order to enable overriding the
 // Discord API URL with the fakediscord base URL
+//
+// As fakediscord grows we will need to add more endpoints here, or come up with a better way to override the base URL
 func overrideEndPoints(baseURL string) {
 	discordgo.EndpointDiscord = baseURL
 	discordgo.EndpointAPI = discordgo.EndpointDiscord + "api/v" + discordgo.APIVersion + "/"
 	discordgo.EndpointGateway = discordgo.EndpointAPI + "gateway"
 
-	// as fakediscord grows we may need to add more endpoints here
+	discordgo.EndpointChannels = discordgo.EndpointAPI + "channels/"
 }
