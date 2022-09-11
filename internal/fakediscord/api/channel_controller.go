@@ -2,13 +2,13 @@ package api
 
 import (
 	"encoding/json"
-	"github.com/elliotwms/fakediscord/internal/fakediscord/ws"
-	"github.com/elliotwms/fakediscord/internal/sequence"
-	"github.com/elliotwms/fakediscord/internal/snowflake"
 	"net/http"
 	"time"
 
 	"github.com/bwmarrin/discordgo"
+	"github.com/elliotwms/fakediscord/internal/fakediscord/ws"
+	"github.com/elliotwms/fakediscord/internal/sequence"
+	"github.com/elliotwms/fakediscord/internal/snowflake"
 	"github.com/gin-gonic/gin"
 )
 
