@@ -1,10 +1,10 @@
 package fakediscord
 
 import (
-	"github.com/elliotwms/fake-discord/internal/fakediscord/api"
-	"github.com/elliotwms/fake-discord/internal/fakediscord/storage"
-	"github.com/elliotwms/fake-discord/internal/snowflake"
-	"github.com/elliotwms/fake-discord/pkg/config"
+	"github.com/elliotwms/fakediscord/internal/fakediscord/api"
+	"github.com/elliotwms/fakediscord/internal/fakediscord/storage"
+	"github.com/elliotwms/fakediscord/internal/snowflake"
+	"github.com/elliotwms/fakediscord/pkg/config"
 	"github.com/gin-gonic/gin"
 )
 

@@ -1,4 +1,4 @@
-module github.com/elliotwms/fake-discord
+module github.com/elliotwms/fakediscord
 
 go 1.19
 

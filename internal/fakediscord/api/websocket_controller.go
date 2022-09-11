@@ -1,10 +1,10 @@
 package api
 
 import (
-	internalws "github.com/elliotwms/fake-discord/internal/fakediscord/ws"
 	"log"
 	"net/http"
 
+	internalws "github.com/elliotwms/fakediscord/internal/fakediscord/ws"
 	"github.com/gin-gonic/gin"
 	"github.com/gorilla/websocket"
 )

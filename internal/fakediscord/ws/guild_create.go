@@ -1,11 +1,11 @@
 package ws
 
 import (
-	"github.com/elliotwms/fake-discord/internal/fakediscord/storage"
 	"log"
 
 	"github.com/bwmarrin/discordgo"
-	"github.com/elliotwms/fake-discord/internal/sequence"
+	"github.com/elliotwms/fakediscord/internal/fakediscord/storage"
+	"github.com/elliotwms/fakediscord/internal/sequence"
 	"github.com/gorilla/websocket"
 )
 

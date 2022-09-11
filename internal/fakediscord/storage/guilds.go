@@ -4,8 +4,8 @@ import (
 	"sync"
 
 	"github.com/bwmarrin/discordgo"
-	"github.com/elliotwms/fake-discord/internal/snowflake"
-	"github.com/elliotwms/fake-discord/pkg/config"
+	"github.com/elliotwms/fakediscord/internal/snowflake"
+	"github.com/elliotwms/fakediscord/pkg/config"
 )
 
 var Guilds sync.Map

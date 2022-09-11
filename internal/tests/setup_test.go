@@ -2,12 +2,12 @@ package tests
 
 import (
 	"embed"
-	"github.com/elliotwms/fake-discord/pkg/config"
 	"gopkg.in/yaml.v2"
 	"testing"
 
-	"github.com/elliotwms/fake-discord/internal/fakediscord"
-	pkgfakediscord "github.com/elliotwms/fake-discord/pkg/fakediscord"
+	"github.com/elliotwms/fakediscord/internal/fakediscord"
+	"github.com/elliotwms/fakediscord/pkg/config"
+	pkgfakediscord "github.com/elliotwms/fakediscord/pkg/fakediscord"
 )
 
 //go:embed files/config.yml

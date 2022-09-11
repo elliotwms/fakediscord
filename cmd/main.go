@@ -1,11 +1,12 @@
 package main
 
 import (
-	"github.com/elliotwms/fake-discord/internal/fakediscord"
-	"github.com/elliotwms/fake-discord/pkg/config"
 	"gopkg.in/yaml.v2"
 	"log"
 	"os"
+
+	"github.com/elliotwms/fakediscord/internal/fakediscord"
+	"github.com/elliotwms/fakediscord/pkg/config"
 )
 
 func main() {
