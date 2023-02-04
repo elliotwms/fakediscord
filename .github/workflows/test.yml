@@ -1,17 +1,8 @@
 name: Test
-
 on:
-  push:
-    branches: [ "master" ]
   pull_request:
     branches: [ "master" ]
   workflow_call:
-    secrets:
-      TOKEN:
-        required: true
-      APPLICATION_ID:
-        required: true
-
 jobs:
   test:
     runs-on: ubuntu-latest
