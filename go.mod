@@ -4,13 +4,14 @@ go 1.19
 
 require (
 	github.com/bwmarrin/discordgo v0.26.0
+	github.com/bwmarrin/snowflake v0.3.0
 	github.com/gin-gonic/gin v1.8.1
-	github.com/gorilla/websocket v1.4.2
+	github.com/gorilla/websocket v1.5.0
 	github.com/stretchr/testify v1.8.0
+	gopkg.in/yaml.v2 v2.4.0
 )
 
 require (
-	github.com/bwmarrin/snowflake v0.3.0 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/gin-contrib/sse v0.1.0 // indirect
 	github.com/go-playground/locales v0.14.0 // indirect
@@ -30,6 +31,5 @@ require (
 	golang.org/x/sys v0.0.0-20220823224334-20c2bfdbfe24 // indirect
 	golang.org/x/text v0.3.7 // indirect
 	google.golang.org/protobuf v1.28.1 // indirect
-	gopkg.in/yaml.v2 v2.4.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
