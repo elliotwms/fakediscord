@@ -34,5 +34,5 @@ func setupRouter() error {
 	v9 := router.Group("api/v9")
 	api.Configure(v9)
 
-	return router.Run("localhost:8080")
+	return router.Run(":8080")
 }
