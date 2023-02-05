@@ -1,7 +1,6 @@
 package api
 
 import (
-	"log"
 	"net/http"
 	"time"
 
@@ -62,7 +61,6 @@ func createChannelMessage(c *gin.Context) {
 	}
 	messageCreate := discordgo.MessageCreate{Message: &m}
 	if err := ws.DispatchEvent("MESSAGE_CREATE", messageCreate); err != nil {
-		log.Printf(err.Error())
 		c.AbortWithStatus(500)
 		return
 	}
