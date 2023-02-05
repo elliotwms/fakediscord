@@ -22,7 +22,7 @@ analogous to [LocalStack](https://github.com/localstack/localstack).
 - [x] [Channel Create](https://discord.com/developers/docs/topics/gateway#channel-create)
 - [ ] [Channel Update](https://discord.com/developers/docs/topics/gateway#channel-update)
 - [x] [Channel Delete](https://discord.com/developers/docs/topics/gateway#channel-delete)
-- [ ] [Channel Pins Update](https://discord.com/developers/docs/topics/gateway#channel-pins-update)
+- [x] [Channel Pins Update](https://discord.com/developers/docs/topics/gateway#channel-pins-update)
 - [ ] [Thread Create](https://discord.com/developers/docs/topics/gateway#thread-create)
 - [ ] [Thread Update](https://discord.com/developers/docs/topics/gateway#thread-update)
 - [ ] [Thread Delete](https://discord.com/developers/docs/topics/gateway#thread-delete)

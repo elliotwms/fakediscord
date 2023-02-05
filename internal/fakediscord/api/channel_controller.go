@@ -13,6 +13,10 @@ import (
 
 func channelController(r *gin.RouterGroup) {
 	r.DELETE("/:channel", deleteChannel)
+
+	r.GET("/:channel/pins", getChannelPins)
+	r.PUT("/:channel/pins/:message", putChannelPin)
+
 	r.POST("/:channel/messages", createChannelMessage)
 	r.GET("/:channel/messages/:message", getChannelMessage)
 	r.GET("/:channel/messages/:message/reactions/:reaction", getMessageReaction)
@@ -27,6 +31,43 @@ func deleteChannel(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, channel)
+}
+
+func getChannelPins(c *gin.Context) {
+	var messages []discordgo.Message
+
+	pins := storage.Pins.Load(c.Param("channel"))
+	for _, pin := range pins {
+		v, ok := storage.Messages.Load(pin)
+		if ok {
+			messages = append(messages, v.(discordgo.Message))
+		}
+	}
+
+	c.JSON(http.StatusOK, messages)
+}
+
+func putChannelPin(c *gin.Context) {
+	channel, ok := storage.Channels.Load(c.Param("channel"))
+	if !ok {
+		c.AbortWithStatus(http.StatusNotFound)
+		return
+	}
+
+	storage.Pins.Store(c.Param("channel"), c.Param("message"))
+
+	err := ws.DispatchEvent("CHANNEL_PINS_UPDATE", discordgo.ChannelPinsUpdate{
+		LastPinTimestamp: time.Now().String(),
+		ChannelID:        c.Param("channel"),
+		GuildID:          channel.(discordgo.Channel).GuildID,
+	})
+
+	if err != nil {
+		_ = c.AbortWithError(http.StatusInternalServerError, err)
+		return
+	}
+
+	c.Status(http.StatusCreated)
 }
 
 func getChannelMessage(c *gin.Context) {
