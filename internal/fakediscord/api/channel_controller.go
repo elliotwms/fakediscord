@@ -100,13 +100,14 @@ func createChannelMessage(c *gin.Context) {
 		},
 		Embeds: messageSend.Embeds,
 	}
+
+	storage.Messages.Store(m.ID, m)
+
 	messageCreate := discordgo.MessageCreate{Message: &m}
 	if err := ws.DispatchEvent("MESSAGE_CREATE", messageCreate); err != nil {
 		c.AbortWithStatus(500)
 		return
 	}
-
-	storage.Messages.Store(m.ID, m)
 
 	c.JSON(http.StatusCreated, discordgo.MessageCreate{
 		Message: &m,
