@@ -6,6 +6,7 @@ var controllers = map[string]func(r *gin.RouterGroup){
 	"gateway":  gatewayController,
 	"channels": channelController,
 	"users":    usersController,
+	"guilds":   guildsController,
 }
 
 func Configure(api *gin.RouterGroup) {
