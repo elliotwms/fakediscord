@@ -27,6 +27,9 @@ func (r *reactionStore) Store(message, reaction, user string) {
 }
 
 func (r *reactionStore) LoadMessageReaction(message, reaction string) (users []string, ok bool) {
+	r.mx.RLock()
+	defer r.mx.RUnlock()
+
 	users, ok = r.messages[message][reaction]
 
 	return
