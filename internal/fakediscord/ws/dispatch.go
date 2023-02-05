@@ -1,9 +1,11 @@
 package ws
 
 import (
-	"github.com/bwmarrin/discordgo"
+	"encoding/json"
 	"sync"
 
+	"github.com/bwmarrin/discordgo"
+	"github.com/elliotwms/fakediscord/internal/sequence"
 	"github.com/gorilla/websocket"
 )
 
@@ -15,6 +17,19 @@ func register(ws *websocket.Conn) {
 	defer connsMX.Unlock()
 
 	conns = append(conns, ws)
+}
+
+func DispatchEvent(t string, body interface{}) error {
+	bs, err := json.Marshal(body)
+	if err != nil {
+		return err
+	}
+
+	return Dispatch(discordgo.Event{
+		Sequence: sequence.Next(),
+		Type:     t,
+		RawData:  bs,
+	})
 }
 
 func Dispatch(e discordgo.Event) error {
