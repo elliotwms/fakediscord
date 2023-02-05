@@ -20,7 +20,10 @@ func ready(ws *websocket.Conn) error {
 }
 
 func buildReady() discordgo.Ready {
-	r := discordgo.Ready{}
+	r := discordgo.Ready{
+		// todo determine caller
+		User: &discordgo.User{ID: "@me"},
+	}
 
 	storage.Guilds.Range(func(key, value any) bool {
 		r.Guilds = append(r.Guilds, &discordgo.Guild{
