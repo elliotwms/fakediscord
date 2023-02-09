@@ -85,7 +85,9 @@ func getChannelMessage(c *gin.Context) {
 func createChannelMessage(c *gin.Context) {
 	var messageSend discordgo.MessageSend
 
+	// todo handle multipart/form-data
 	if err := c.BindJSON(&messageSend); err != nil {
+		_ = c.AbortWithError(http.StatusBadRequest, err)
 		return
 	}
 
