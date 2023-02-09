@@ -35,6 +35,5 @@ func handleWS(c *gin.Context) {
 
 	if err = internalws.Handle(ws); err != nil {
 		log.Printf("error handling message: %s", err)
-		c.AbortWithStatus(http.StatusInternalServerError)
 	}
 }
