@@ -1,14 +1,18 @@
 package storage
 
-import "sync"
+import (
+	"sync"
+)
 
 var Reactions = &reactionStore{
-	messages: make(map[string]map[string][]string),
+	messages: make(map[string]ReactionsUsers),
 }
+
+type ReactionsUsers map[string][]string
 
 type reactionStore struct {
 	mx       sync.RWMutex
-	messages map[string]map[string][]string
+	messages map[string]ReactionsUsers
 }
 
 func (r *reactionStore) Store(message, reaction, user string) {
@@ -33,4 +37,11 @@ func (r *reactionStore) LoadMessageReaction(message, reaction string) (users []s
 	users, ok = r.messages[message][reaction]
 
 	return
+}
+
+func (r *reactionStore) DeleteMessageReactions(message string) {
+	r.mx.Lock()
+	defer r.mx.Unlock()
+
+	delete(r.messages, message)
 }

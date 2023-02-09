@@ -20,6 +20,7 @@ func channelController(r *gin.RouterGroup) {
 	r.POST("/:channel/messages", createChannelMessage)
 	r.DELETE("/:channel/messages/:message", deleteChannelMessage)
 	r.GET("/:channel/messages/:message", getChannelMessage)
+	r.DELETE("/:channel/messages/:message/reactions", deleteMessageReactions)
 	r.GET("/:channel/messages/:message/reactions/:reaction", getMessageReaction)
 	r.PUT("/:channel/messages/:message/reactions/:reaction/:user", putMessageReaction)
 }
@@ -185,4 +186,30 @@ func putMessageReaction(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusCreated, c.Request.Body)
+}
+
+func deleteMessageReactions(c *gin.Context) {
+	v, ok := storage.Messages.Load(c.Param("message"))
+	if !ok {
+		c.Status(http.StatusNotFound)
+		return
+	}
+
+	m := v.(discordgo.Message)
+
+	storage.Reactions.DeleteMessageReactions(c.Param("message"))
+
+	err := ws.DispatchEvent("MESSAGE_REACTION_REMOVE_ALL", discordgo.MessageReactionRemoveAll{
+		MessageReaction: &discordgo.MessageReaction{
+			MessageID: m.ID,
+			ChannelID: m.ChannelID,
+			GuildID:   m.GuildID,
+		},
+	})
+	if err != nil {
+		_ = c.AbortWithError(http.StatusInternalServerError, err)
+		return
+	}
+
+	c.Status(http.StatusNoContent)
 }
