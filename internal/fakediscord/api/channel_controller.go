@@ -18,6 +18,7 @@ func channelController(r *gin.RouterGroup) {
 	r.PUT("/:channel/pins/:message", putChannelPin)
 
 	r.POST("/:channel/messages", createChannelMessage)
+	r.DELETE("/:channel/messages/:message", deleteChannelMessage)
 	r.GET("/:channel/messages/:message", getChannelMessage)
 	r.GET("/:channel/messages/:message/reactions/:reaction", getMessageReaction)
 	r.PUT("/:channel/messages/:message/reactions/:reaction/:user", putMessageReaction)
@@ -112,6 +113,25 @@ func createChannelMessage(c *gin.Context) {
 	c.JSON(http.StatusCreated, discordgo.MessageCreate{
 		Message: &m,
 	})
+}
+
+func deleteChannelMessage(c *gin.Context) {
+	m, ok := storage.Messages.LoadAndDelete(c.Param("message"))
+	if !ok {
+		c.AbortWithStatus(http.StatusNotFound)
+		return
+	}
+
+	message := m.(discordgo.Message)
+	err := ws.DispatchEvent("MESSAGE_DELETE", discordgo.MessageDelete{
+		Message: &message,
+	})
+	if err != nil {
+		_ = c.AbortWithError(http.StatusInternalServerError, err)
+		return
+	}
+
+	c.Status(http.StatusOK)
 }
 
 func getMessageReaction(c *gin.Context) {

@@ -60,7 +60,7 @@ analogous to [LocalStack](https://github.com/localstack/localstack).
   - [ ] Embeds
   - [ ] Multipart
 - [ ] [Message Update](https://discord.com/developers/docs/topics/gateway#message-update)
-- [ ] [Message Delete](https://discord.com/developers/docs/topics/gateway#message-delete)
+- [x] [Message Delete](https://discord.com/developers/docs/topics/gateway#message-delete)
 - [ ] [Message Delete Bulk](https://discord.com/developers/docs/topics/gateway#message-delete-bulk)
 - [x] [Message Reaction Add](https://discord.com/developers/docs/topics/gateway#message-reaction-add)
 - [ ] [Message Reaction Remove](https://discord.com/developers/docs/topics/gateway#message-reaction-remove)
