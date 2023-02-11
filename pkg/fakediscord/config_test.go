@@ -11,7 +11,7 @@ func TestConfigure(t *testing.T) {
 	Configure(baseURL)
 
 	require.Equal(t, discordgo.EndpointDiscord, baseURL)
-	require.Equal(t, discordgo.EndpointGateway, baseURL+"gateway")
+	require.Equal(t, discordgo.EndpointGateway, baseURL+"api/v"+discordgo.APIVersion+"/gateway")
 
 	url := baseURL + "api/v9/applications/1/guilds/2/commands"
 	require.Equal(t, url, discordgo.EndpointApplicationGuildCommands("1", "2"))
