@@ -113,7 +113,7 @@ func createChannelMessage(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusCreated, discordgo.MessageCreate{
+	c.JSON(http.StatusOK, discordgo.MessageCreate{
 		Message: &m,
 	})
 }
@@ -138,11 +138,7 @@ func deleteChannelMessage(c *gin.Context) {
 }
 
 func getMessageReaction(c *gin.Context) {
-	vs, ok := storage.Reactions.LoadMessageReaction(c.Param("message"), c.Param("reaction"))
-	if !ok {
-		c.AbortWithStatus(http.StatusNotFound)
-		return
-	}
+	vs, _ := storage.Reactions.LoadMessageReaction(c.Param("message"), c.Param("reaction"))
 
 	var users []*discordgo.User
 	for _, v := range vs {
@@ -187,7 +183,7 @@ func putMessageReaction(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusCreated, c.Request.Body)
+	c.Status(http.StatusNoContent)
 }
 
 func deleteMessageReactions(c *gin.Context) {
