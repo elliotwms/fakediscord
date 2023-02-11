@@ -18,4 +18,5 @@ func overrideEndPoints(baseURL string) {
 	discordgo.EndpointGuildCreate = discordgo.EndpointAPI + "guilds"
 	discordgo.EndpointGuilds = discordgo.EndpointAPI + "guilds/"
 	discordgo.EndpointUsers = discordgo.EndpointAPI + "users/"
+	discordgo.EndpointApplications = discordgo.EndpointAPI + "applications"
 }

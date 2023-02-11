@@ -3,10 +3,11 @@ package api
 import "github.com/gin-gonic/gin"
 
 var controllers = map[string]func(r *gin.RouterGroup){
-	"gateway":  gatewayController,
-	"channels": channelController,
-	"users":    usersController,
-	"guilds":   guildsController,
+	"applications": applicationsController,
+	"channels":     channelController,
+	"gateway":      gatewayController,
+	"guilds":       guildsController,
+	"users":        usersController,
 }
 
 func Configure(api *gin.RouterGroup) {
