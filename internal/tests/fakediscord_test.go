@@ -5,7 +5,8 @@ import (
 )
 
 func TestSession_Connects(t *testing.T) {
-	given, when, then := NewStage(t)
+	given, when, then, cleanup := NewStage(t)
+	defer cleanup()
 
 	given.
 		a_new_session().and().
@@ -22,7 +23,8 @@ func TestSession_Connects(t *testing.T) {
 }
 
 func TestSession_CreateMessage(t *testing.T) {
-	given, when, then := NewStage(t)
+	given, when, then, cleanup := NewStage(t)
+	defer cleanup()
 
 	given.
 		an_established_session().and().

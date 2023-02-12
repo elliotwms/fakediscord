@@ -1,6 +1,7 @@
 package tests
 
 import (
+	"log"
 	"sync"
 	"testing"
 	"time"
@@ -28,12 +29,14 @@ type stage struct {
 	testGuild *discordgo.GuildCreate
 }
 
-func NewStage(t *testing.T) (*stage, *stage, *stage) {
+func NewStage(t *testing.T) (given *stage, when *stage, then *stage, cleanup func()) {
 	s := &stage{
 		require: require.New(t),
 	}
 
-	return s, s, s
+	return s, s, s, func() {
+		s.the_session_is_closed()
+	}
 }
 
 func (s *stage) and() *stage {
@@ -79,6 +82,8 @@ func (s *stage) the_session_watches_for_message_created_events() *stage {
 		s.messagesMX.Lock()
 		defer s.messagesMX.Unlock()
 
+		log.Print("MESSAGE RECEIVED")
+
 		s.messages = append(s.messages, m)
 	})
 
@@ -91,6 +96,11 @@ func (s *stage) the_session_is_opened() *stage {
 	return s
 }
 
+func (s *stage) the_session_is_closed() *stage {
+	s.require.NoError(s.session.Close(), "session should close successfully")
+
+	return s
+}
 func (s *stage) the_session_is_ready() *stage {
 	s.require.Eventually(func() bool {
 		return s.ready != nil
