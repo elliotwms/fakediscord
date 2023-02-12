@@ -13,6 +13,7 @@ import (
 
 func guildsController(r *gin.RouterGroup) {
 	r.POST("", postGuild)
+	r.DELETE("/:guild", deleteGuild)
 
 	r.POST("/:guild/channels", postGuildChannels)
 }
@@ -39,6 +40,29 @@ func postGuild(c *gin.Context) {
 	})
 
 	c.JSON(http.StatusCreated, guild)
+}
+
+// https://discord.com/developers/docs/resources/guild#delete-guild
+func deleteGuild(c *gin.Context) {
+	v, ok := storage.Guilds.LoadAndDelete(c.Param("guild"))
+	if !ok {
+		c.Status(http.StatusNotFound)
+		return
+	}
+
+	guild := v.(discordgo.Guild)
+
+	if err := ws.DispatchEvent("GUILD_UPDATE", guild); err != nil {
+		_ = c.AbortWithError(http.StatusInternalServerError, err)
+		return
+	}
+
+	if err := ws.DispatchEvent("GUILD_DELETE", discordgo.Guild{ID: guild.ID}); err != nil {
+		_ = c.AbortWithError(http.StatusInternalServerError, err)
+		return
+	}
+
+	c.Status(http.StatusNoContent)
 }
 
 func postGuildChannels(c *gin.Context) {
