@@ -3,7 +3,7 @@ module github.com/elliotwms/fakediscord
 go 1.19
 
 require (
-	github.com/bwmarrin/discordgo v0.26.0
+	github.com/bwmarrin/discordgo v0.27.0
 	github.com/bwmarrin/snowflake v0.3.0
 	github.com/gin-gonic/gin v1.8.2
 	github.com/gorilla/websocket v1.5.0
