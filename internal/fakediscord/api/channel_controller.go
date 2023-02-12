@@ -34,6 +34,7 @@ func deleteChannel(c *gin.Context) {
 
 	if err := ws.DispatchEvent("CHANNEL_DELETE", channel); err != nil {
 		_ = c.AbortWithError(http.StatusInternalServerError, err)
+		return
 	}
 
 	c.JSON(http.StatusOK, channel)
