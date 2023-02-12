@@ -6,17 +6,24 @@ import (
 
 	"github.com/bwmarrin/discordgo"
 	"github.com/elliotwms/fakediscord/internal/sequence"
+	"github.com/elliotwms/fakediscord/internal/snowflake"
 	"github.com/gorilla/websocket"
 )
 
-var conns []*websocket.Conn
-var connsMX sync.RWMutex
+var conns sync.Map
 
-func register(ws *websocket.Conn) {
-	connsMX.Lock()
-	defer connsMX.Unlock()
+func register(ws *websocket.Conn) string {
+	id := snowflake.Generate().String()
 
-	conns = append(conns, ws)
+	conns.Store(id, ws)
+
+	return id
+}
+
+func deregister(id string) bool {
+	_, ok := conns.LoadAndDelete(id)
+
+	return ok
 }
 
 func DispatchEvent(t string, body interface{}) error {
@@ -33,15 +40,11 @@ func DispatchEvent(t string, body interface{}) error {
 }
 
 func Dispatch(e discordgo.Event) error {
-	connsMX.RLock()
-	defer connsMX.RUnlock()
+	var err error
+	conns.Range(func(_, value any) bool {
+		err = value.(*websocket.Conn).WriteJSON(e)
+		return err != nil
+	})
 
-	for i := range conns {
-		err := conns[i].WriteJSON(e)
-		if err != nil {
-			return err
-		}
-	}
-
-	return nil
+	return err
 }
