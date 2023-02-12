@@ -17,8 +17,8 @@ jobs:
       # Get values for cache paths to be used in later steps
     - id: go-cache-paths
       run: |
-        echo "GOCACHE=$(go env GOCACHE)" >> GITHUB_OUTPUT
-        echo "GOMODCACHE=$(go env GOMODCACHE)" >> GITHUB_OUTPUT
+        echo "GOCACHE=$(go env GOCACHE)" >> $GITHUB_OUTPUT
+        echo "GOMODCACHE=$(go env GOMODCACHE)" >> $GITHUB_OUTPUT
 
       # Cache go build cache, used to speedup go test
     - name: Go Build Cache
