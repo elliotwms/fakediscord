@@ -1,6 +1,10 @@
 package api
 
 import (
+	"encoding/json"
+	"errors"
+	"fmt"
+	"log"
 	"net/http"
 	"time"
 
@@ -88,10 +92,8 @@ func getChannelMessage(c *gin.Context) {
 
 // https://discord.com/developers/docs/resources/channel#create-message
 func createChannelMessage(c *gin.Context) {
-	var messageSend discordgo.MessageSend
-
-	// todo handle multipart/form-data
-	if err := c.BindJSON(&messageSend); err != nil {
+	messageSend, err := parseMessageSend(c)
+	if err != nil {
 		_ = c.AbortWithError(http.StatusBadRequest, err)
 		return
 	}
@@ -107,7 +109,8 @@ func createChannelMessage(c *gin.Context) {
 			Username:      "username",
 			Discriminator: "0000",
 		},
-		Embeds: messageSend.Embeds,
+		Embeds:      messageSend.Embeds,
+		Attachments: buildAttachments(c.Param("channel"), messageSend.Files),
 	}
 
 	storage.Messages.Store(m.ID, m)
@@ -121,6 +124,78 @@ func createChannelMessage(c *gin.Context) {
 	c.JSON(http.StatusOK, discordgo.MessageCreate{
 		Message: &m,
 	})
+}
+
+func parseMessageSend(c *gin.Context) (*discordgo.MessageSend, error) {
+	var messageSend discordgo.MessageSend
+
+	switch c.ContentType() {
+	case "application/json":
+		if err := c.BindJSON(&messageSend); err != nil {
+			return nil, err
+		}
+	case "multipart/form-data":
+		form, err := c.MultipartForm()
+		if err != nil {
+			return nil, err
+		}
+
+		payload, ok := form.Value["payload_json"]
+		if !ok {
+			return nil, errors.New("missing payload_json")
+		}
+
+		if len(payload) == 0 {
+			return nil, errors.New("missing payload")
+		}
+
+		err = json.Unmarshal([]byte(payload[0]), &messageSend)
+		if err != nil {
+			return nil, err
+		}
+
+		for s, headers := range form.File {
+			log.Printf("Parsing file %s", s)
+
+			open, err := headers[0].Open()
+			if err != nil {
+				return nil, err
+			}
+			file := &discordgo.File{
+				Name:        headers[0].Filename,
+				ContentType: headers[0].Header.Get("Content-Type"),
+				Reader:      open,
+			}
+			messageSend.Files = append(messageSend.Files, file)
+		}
+	default:
+		return nil, fmt.Errorf("unhandled content type %s", c.ContentType())
+	}
+
+	return &messageSend, nil
+}
+
+func buildAttachments(channelID string, files []*discordgo.File) []*discordgo.MessageAttachment {
+	var attachments []*discordgo.MessageAttachment
+
+	for _, f := range files {
+		id := snowflake.Generate().String()
+		// todo serve 'cdn' from local fs
+		url := fmt.Sprintf("https://cdn.discordapp.com/attachments/%s/%s/%s", channelID, id, f.Name)
+
+		attachments = append(attachments, &discordgo.MessageAttachment{
+			ID:          id,
+			URL:         url,
+			ProxyURL:    url,
+			Filename:    f.Name,
+			ContentType: f.ContentType,
+			Width:       1,
+			Height:      2,
+			Size:        3,
+		})
+	}
+
+	return attachments
 }
 
 func deleteChannelMessage(c *gin.Context) {
