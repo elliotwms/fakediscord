@@ -78,3 +78,39 @@ func (s *MessageStage) the_message_can_be_fetched() {
 	s.require.NoError(err)
 	s.require.NotNil(m)
 }
+
+func (s *MessageStage) the_message_is_pinned() {
+	s.require.NoError(s.session.ChannelMessagePin(s.channel.ID, s.messageID))
+}
+
+func (s *MessageStage) the_message_has_been_pinned() {
+	pinned, err := s.session.ChannelMessagesPinned(s.channel.ID)
+	s.require.NoError(err)
+
+	found := false
+	for _, message := range pinned {
+		if message.ID == s.messageID {
+			found = true
+		}
+	}
+
+	s.require.True(found)
+}
+
+func (s *MessageStage) the_message_is_reacted_to_with(emoji string) *MessageStage {
+	err := s.session.MessageReactionAdd(s.channel.ID, s.messageID, emoji)
+	s.require.NoError(err)
+
+	return s
+}
+
+func (s *MessageStage) the_message_has_n_reactions_to_emoji(n int, emoji string) {
+	reactions, err := s.session.MessageReactions(s.channel.ID, s.messageID, emoji, 0, "", "")
+	s.require.NoError(err)
+	s.require.Len(reactions, n)
+}
+
+func (s *MessageStage) the_message_reactions_are_removed() {
+	err := s.session.MessageReactionsRemoveAll(s.channel.ID, s.messageID)
+	s.require.NoError(err)
+}
