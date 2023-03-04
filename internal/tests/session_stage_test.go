@@ -1,7 +1,6 @@
 package tests
 
 import (
-	"log"
 	"sync"
 	"testing"
 	"time"
@@ -22,9 +21,6 @@ type SessionStage struct {
 
 	guildCreateMX sync.RWMutex
 	guildCreate   []*discordgo.GuildCreate
-
-	messagesMX sync.RWMutex
-	messages   []*discordgo.MessageCreate
 
 	testGuild *discordgo.GuildCreate
 }
@@ -66,19 +62,6 @@ func (s *SessionStage) the_session_watches_for_guild_create_events() *SessionSta
 		if c.Name == "Test Guild" {
 			s.testGuild = c
 		}
-	})
-
-	return s
-}
-
-func (s *SessionStage) the_session_watches_for_message_created_events() *SessionStage {
-	s.session.AddHandler(func(_ *discordgo.Session, m *discordgo.MessageCreate) {
-		s.messagesMX.Lock()
-		defer s.messagesMX.Unlock()
-
-		log.Print("MESSAGE RECEIVED")
-
-		s.messages = append(s.messages, m)
 	})
 
 	return s
