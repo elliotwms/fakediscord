@@ -4,10 +4,10 @@ import (
 	"net/http"
 
 	"github.com/bwmarrin/discordgo"
+	"github.com/elliotwms/fakediscord/internal/fakediscord/builders"
 	"github.com/elliotwms/fakediscord/internal/fakediscord/storage"
 	"github.com/elliotwms/fakediscord/internal/fakediscord/ws"
 	"github.com/elliotwms/fakediscord/internal/snowflake"
-	"github.com/elliotwms/fakediscord/pkg/config"
 	"github.com/gin-gonic/gin"
 )
 
@@ -29,14 +29,12 @@ func postGuild(c *gin.Context) {
 		return
 	}
 
-	guild := storage.BuildTestGuild(config.Guild{
-		Name: data.Name,
-	})
+	guild := builders.NewGuild(data.Name).Build()
 
-	storage.Guilds.Store(guild.ID, guild)
+	storage.Guilds.Store(guild.ID, *guild)
 
 	_ = ws.DispatchEvent("GUILD_CREATE", discordgo.GuildCreate{
-		Guild: &guild,
+		Guild: guild,
 	})
 
 	c.JSON(http.StatusCreated, guild)
