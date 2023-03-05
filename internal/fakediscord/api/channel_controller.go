@@ -4,8 +4,10 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"image"
 	"log"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/bwmarrin/discordgo"
@@ -183,19 +185,33 @@ func buildAttachments(channelID string, files []*discordgo.File) []*discordgo.Me
 		// todo serve 'cdn' from local fs
 		url := fmt.Sprintf("https://cdn.discordapp.com/attachments/%s/%s/%s", channelID, id, f.Name)
 
-		attachments = append(attachments, &discordgo.MessageAttachment{
+		attachment := &discordgo.MessageAttachment{
 			ID:          id,
 			URL:         url,
 			ProxyURL:    url,
 			Filename:    f.Name,
 			ContentType: f.ContentType,
-			Width:       1,
-			Height:      2,
-			Size:        3,
-		})
+			Size:        1,
+		}
+
+		if isImage(f.ContentType) {
+			config, _, err := image.DecodeConfig(f.Reader)
+			if err != nil {
+				return nil
+			}
+
+			attachment.Width = config.Width
+			attachment.Height = config.Height
+		}
+
+		attachments = append(attachments, attachment)
 	}
 
 	return attachments
+}
+
+func isImage(contentType string) bool {
+	return strings.Contains(contentType, "image/")
 }
 
 func deleteChannelMessage(c *gin.Context) {

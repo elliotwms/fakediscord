@@ -1,9 +1,10 @@
 package tests
 
 import (
+	"os"
+
 	"github.com/bwmarrin/discordgo"
 	"github.com/stretchr/testify/require"
-	"os"
 )
 
 func newSession(require *require.Assertions) *discordgo.Session {

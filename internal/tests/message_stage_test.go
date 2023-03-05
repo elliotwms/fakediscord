@@ -1,6 +1,7 @@
 package tests
 
 import (
+	"os"
 	"testing"
 	"time"
 
@@ -15,6 +16,7 @@ type MessageStage struct {
 	channel     *discordgo.Channel
 	messageSend *discordgo.MessageSend
 	messageID   string
+	attachments []*discordgo.MessageAttachment
 }
 
 func NewMessageStage(t *testing.T) (given, then, when *MessageStage) {
@@ -59,7 +61,7 @@ func (s *MessageStage) the_message_is_sent() *MessageStage {
 	return s
 }
 
-func (s *MessageStage) the_message_is_received() *MessageStage {
+func (s *MessageStage) the_message_should_be_received() *MessageStage {
 	s.require.Eventually(
 		func() bool {
 			message, err := s.session.State.Message(s.channel.ID, s.messageID)
@@ -104,7 +106,7 @@ func (s *MessageStage) the_message_is_reacted_to_with(emoji string) *MessageStag
 	return s
 }
 
-func (s *MessageStage) the_message_has_n_reactions_to_emoji(n int, emoji string) {
+func (s *MessageStage) the_message_should_have_n_reactions_to_emoji(n int, emoji string) {
 	reactions, err := s.session.MessageReactions(s.channel.ID, s.messageID, emoji, 0, "", "")
 	s.require.NoError(err)
 	s.require.Len(reactions, n)
@@ -113,4 +115,39 @@ func (s *MessageStage) the_message_has_n_reactions_to_emoji(n int, emoji string)
 func (s *MessageStage) the_message_reactions_are_removed() {
 	err := s.session.MessageReactionsRemoveAll(s.channel.ID, s.messageID)
 	s.require.NoError(err)
+}
+
+func (s *MessageStage) an_attachment(filename, contentType string) {
+	f, err := os.Open("files/" + filename)
+	s.require.NoError(err)
+
+	s.messageSend.Files = append(s.messageSend.Files, &discordgo.File{
+		Name:        filename,
+		ContentType: contentType,
+		Reader:      f,
+	})
+}
+
+func (s *MessageStage) the_message_should_have_n_attachments(n int) *MessageStage {
+	s.require.Eventually(func() bool {
+		m, err := s.session.ChannelMessage(s.channel.ID, s.messageID)
+
+		s.attachments = m.Attachments
+
+		return err == nil && len(m.Attachments) == n
+	}, defaultWait, defaultTick)
+
+	return s
+}
+
+func (s *MessageStage) the_message_should_have_an_attachment() *MessageStage {
+	return s.the_message_should_have_n_attachments(1)
+}
+
+func (s *MessageStage) the_first_attachment_should_have_a_resolution_set() {
+	s.require.NotEmpty(s.attachments)
+
+	attachment := s.attachments[0]
+	s.require.NotEmpty(attachment.Width)
+	s.require.NotEmpty(attachment.Height)
 }
