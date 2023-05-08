@@ -43,8 +43,7 @@ func setupRouter() error {
 	api.WebsocketController(router.Group("ws"))
 
 	// mock the HTTP api
-	v9 := router.Group("api/v9")
-	api.Configure(v9)
+	api.Configure(router.Group("api/:version"))
 
 	return router.Run(":8080")
 }

@@ -1,10 +1,14 @@
 package ws
 
 import (
+	"encoding/json"
+	"errors"
 	"log"
+	"strings"
 	"time"
 
 	"github.com/bwmarrin/discordgo"
+	"github.com/elliotwms/fakediscord/internal/fakediscord/storage"
 	"github.com/gorilla/websocket"
 )
 
@@ -46,19 +50,36 @@ func establishConnection(c *websocket.Conn) error {
 
 	log.Print("waiting for identify")
 
-	i := Event{Data: discordgo.Identify{}}
-	err = c.ReadJSON(&i)
-	if err != nil {
+	i := &discordgo.Identify{}
+
+	err = c.ReadJSON(&Event{Data: i})
+	if err != nil && errors.Is(err, &json.UnmarshalTypeError{}) {
+		// todo fix json.UnmarshalTypeError
 		return err
 	}
 
-	if err = ready(c); err != nil {
+	u, err := authUser(i.Token)
+	if err != nil {
+		//todo handle missing user with proper close (4004: "Authentication failed.")
+		return c.Close()
+	}
+
+	if err = ready(c, u); err != nil {
 		return err
 	}
 
 	go sendSignOnGuildCreateEvents(c)
 
 	return nil
+}
+
+func authUser(token string) (u *discordgo.User, err error) {
+	s := strings.SplitN(token, " ", 2)
+	if len(s) != 2 {
+		return nil, errors.New("malformed token")
+	}
+
+	return storage.Authenticate(s[1]), nil
 }
 
 func handleMessage(ws *websocket.Conn) error {

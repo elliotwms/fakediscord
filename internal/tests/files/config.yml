@@ -1,3 +1,8 @@
+users:
+  - username: HAL
+    discriminator: "9000"
+    bot: true
+    token: token
 guilds:
   - name: Test Guild
     channels:

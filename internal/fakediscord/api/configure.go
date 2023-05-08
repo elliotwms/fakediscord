@@ -11,6 +11,8 @@ var controllers = map[string]func(r *gin.RouterGroup){
 }
 
 func Configure(api *gin.RouterGroup) {
+	api.Use(auth)
+
 	for path, group := range controllers {
 		group(api.Group(path))
 	}

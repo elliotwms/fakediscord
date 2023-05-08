@@ -9,20 +9,19 @@ import (
 	"github.com/gorilla/websocket"
 )
 
-func ready(ws *websocket.Conn) error {
+func ready(ws *websocket.Conn, u *discordgo.User) error {
 	log.Print("sending READY")
 
 	return ws.WriteJSON(Event{
 		Type:     "READY",
 		Sequence: sequence.Next(),
-		Data:     buildReady(),
+		Data:     buildReady(u),
 	})
 }
 
-func buildReady() discordgo.Ready {
+func buildReady(u *discordgo.User) discordgo.Ready {
 	r := discordgo.Ready{
-		// todo determine caller
-		User: &discordgo.User{ID: "@me"},
+		User: u,
 	}
 
 	storage.Guilds.Range(func(key, value any) bool {
