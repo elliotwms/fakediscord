@@ -100,17 +100,20 @@ func createChannelMessage(c *gin.Context) {
 		return
 	}
 
+	u, ok := storage.Users.Load(c.GetString(contextKeyUserID))
+	if !ok {
+		_ = c.AbortWithError(http.StatusInternalServerError, errors.New("user missing from state"))
+		return
+	}
+
+	user := u.(discordgo.User)
+
 	m := discordgo.Message{
-		ID:        snowflake.Generate().String(),
-		ChannelID: c.Param("channel"),
-		Content:   messageSend.Content,
-		Timestamp: time.Now(),
-		// todo set author as caller identity
-		Author: &discordgo.User{
-			ID:            snowflake.Generate().String(),
-			Username:      "username",
-			Discriminator: "0000",
-		},
+		ID:          snowflake.Generate().String(),
+		ChannelID:   c.Param("channel"),
+		Content:     messageSend.Content,
+		Timestamp:   time.Now(),
+		Author:      &user,
 		Embeds:      messageSend.Embeds,
 		Attachments: buildAttachments(c.Param("channel"), messageSend.Files),
 	}

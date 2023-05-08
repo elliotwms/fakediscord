@@ -13,7 +13,8 @@ func TestMessage_Send(t *testing.T) {
 
 	then.
 		the_message_should_be_received().and().
-		the_message_can_be_fetched()
+		the_message_can_be_fetched().and().
+		the_message_has_the_author_as_the_session_user()
 }
 
 func TestMessage_Pin(t *testing.T) {

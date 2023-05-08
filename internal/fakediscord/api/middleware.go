@@ -9,7 +9,7 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-const contextKeyUser = "user"
+const contextKeyUserID = "user_id"
 
 func auth(c *gin.Context) {
 	split := strings.SplitN(c.GetHeader("Authorization"), " ", 2)
@@ -25,5 +25,5 @@ func auth(c *gin.Context) {
 		return
 	}
 
-	c.Set(contextKeyUser, *u)
+	c.Set(contextKeyUserID, u.ID)
 }
