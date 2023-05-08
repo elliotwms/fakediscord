@@ -23,6 +23,10 @@ func NewUser(username, discriminator string) *User {
 func NewUserFromConfig(config config.User) *User {
 	user := NewUser(config.Username, config.Discriminator)
 
+	if config.ID != nil {
+		user.WithID(config.ID.String())
+	}
+
 	if config.Token != "" {
 		user.WithToken(config.Token)
 	}
@@ -32,6 +36,12 @@ func NewUserFromConfig(config config.User) *User {
 
 func (u *User) Build() *discordgo.User {
 	return u.u
+}
+
+func (u *User) WithID(s string) *User {
+	u.u.ID = s
+
+	return u
 }
 
 func (u *User) WithToken(token string) *User {
