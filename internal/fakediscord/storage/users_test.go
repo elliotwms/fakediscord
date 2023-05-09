@@ -19,7 +19,7 @@ func TestUsers_Authenticate(t *testing.T) {
 		WithToken("foo_token").
 		Build()
 
-	Users.Store(u.ID, u)
+	Users.Store(u.ID, *u)
 
 	require.NotNil(t, Authenticate("foo_token"))
 }
