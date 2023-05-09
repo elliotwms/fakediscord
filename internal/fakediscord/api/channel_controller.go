@@ -31,6 +31,17 @@ func channelController(r *gin.RouterGroup) {
 	r.PUT("/:channel/messages/:message/reactions/:reaction/:user", putMessageReaction)
 }
 
+func getUser(c *gin.Context) (discordgo.User, bool) {
+	u, ok := storage.Users.Load(c.GetString(contextKeyUserID))
+	if !ok {
+		_ = c.AbortWithError(http.StatusInternalServerError, errors.New("user missing from state"))
+		return discordgo.User{}, true
+	}
+
+	user := u.(discordgo.User)
+	return user, false
+}
+
 func deleteChannel(c *gin.Context) {
 	channel, ok := storage.Channels.LoadAndDelete(c.Param("channel"))
 	if !ok {
@@ -100,13 +111,10 @@ func createChannelMessage(c *gin.Context) {
 		return
 	}
 
-	u, ok := storage.Users.Load(c.GetString(contextKeyUserID))
-	if !ok {
-		_ = c.AbortWithError(http.StatusInternalServerError, errors.New("user missing from state"))
+	user, done := getUser(c)
+	if done {
 		return
 	}
-
-	user := u.(discordgo.User)
 
 	m := discordgo.Message{
 		ID:          snowflake.Generate().String(),
@@ -255,10 +263,14 @@ func putMessageReaction(c *gin.Context) {
 	}
 	channel := v.(discordgo.Channel)
 
+	user, done := getUser(c)
+	if done {
+		return
+	}
+
 	e := &discordgo.MessageReactionAdd{
 		MessageReaction: &discordgo.MessageReaction{
-			// todo storage for users, for auth testing and lookup (@me should resolve here)
-			UserID:    c.Param("user"),
+			UserID:    user.ID,
 			MessageID: c.Param("message"),
 			Emoji: discordgo.Emoji{
 				Name: c.Param("reaction"),
@@ -267,10 +279,7 @@ func putMessageReaction(c *gin.Context) {
 			GuildID:   channel.GuildID,
 		},
 		Member: &discordgo.Member{
-			User: &discordgo.User{
-				// todo resolve an actual user
-				ID: snowflake.Generate().String(),
-			},
+			User: &user,
 		},
 	}
 
