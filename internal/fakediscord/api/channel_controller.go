@@ -283,7 +283,7 @@ func putMessageReaction(c *gin.Context) {
 		},
 	}
 
-	storage.Reactions.Store(c.Param("message"), c.Param("reaction"), c.Param("user"))
+	storage.Reactions.Store(c.Param("message"), c.Param("reaction"), user.ID)
 
 	err := ws.DispatchEvent("MESSAGE_REACTION_ADD", e)
 	if err != nil {
