@@ -1,8 +1,9 @@
 package storage
 
 import (
-	"github.com/bwmarrin/discordgo"
 	"sync"
+
+	"github.com/bwmarrin/discordgo"
 )
 
 var Users sync.Map

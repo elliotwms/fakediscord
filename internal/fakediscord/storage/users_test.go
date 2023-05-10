@@ -1,10 +1,11 @@
 package storage
 
 import (
+	"testing"
+
 	"github.com/elliotwms/fakediscord/internal/fakediscord/builders"
 	"github.com/elliotwms/fakediscord/internal/snowflake"
 	"github.com/stretchr/testify/require"
-	"testing"
 )
 
 func TestMain(m *testing.M) {
