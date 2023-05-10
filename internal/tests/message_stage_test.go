@@ -75,10 +75,12 @@ func (s *MessageStage) the_message_should_be_received() *MessageStage {
 	return s
 }
 
-func (s *MessageStage) the_message_can_be_fetched() {
+func (s *MessageStage) the_message_can_be_fetched() *MessageStage {
 	m, err := s.session.ChannelMessage(s.channel.ID, s.messageID)
 	s.require.NoError(err)
 	s.require.NotNil(m)
+
+	return s
 }
 
 func (s *MessageStage) the_message_is_pinned() {
@@ -150,4 +152,10 @@ func (s *MessageStage) the_first_attachment_should_have_a_resolution_set() {
 	attachment := s.attachments[0]
 	s.require.NotEmpty(attachment.Width)
 	s.require.NotEmpty(attachment.Height)
+}
+
+func (s *MessageStage) the_message_has_the_author_as_the_session_user() {
+	message, err := s.session.State.Message(s.channel.ID, s.messageID)
+	s.require.NoError(err)
+	s.require.Equal(s.session.State.User.ID, message.Author.ID)
 }

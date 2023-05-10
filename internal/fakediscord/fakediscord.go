@@ -20,6 +20,12 @@ func Run(c config.Config) error {
 }
 
 func importConfig(c config.Config) {
+	for _, user := range c.Users {
+		u := builders.NewUserFromConfig(user).Build()
+
+		storage.Users.Store(u.ID, *u)
+	}
+
 	for _, guild := range c.Guilds {
 		g := builders.NewGuildFromConfig(guild).Build()
 
@@ -37,8 +43,7 @@ func setupRouter() error {
 	api.WebsocketController(router.Group("ws"))
 
 	// mock the HTTP api
-	v9 := router.Group("api/v9")
-	api.Configure(v9)
+	api.Configure(router.Group("api/:version"))
 
 	return router.Run(":8080")
 }
