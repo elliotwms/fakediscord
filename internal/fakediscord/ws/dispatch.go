@@ -11,6 +11,7 @@ import (
 )
 
 var conns sync.Map
+var connMutex sync.Mutex
 
 func register(ws *websocket.Conn) string {
 	id := snowflake.Generate().String()
@@ -41,6 +42,10 @@ func DispatchEvent(t string, body interface{}) error {
 
 func Dispatch(e discordgo.Event) error {
 	var err error
+
+	connMutex.Lock()
+	defer connMutex.Unlock()
+
 	conns.Range(func(_, value any) bool {
 		err = value.(*websocket.Conn).WriteJSON(e)
 		return err != nil
