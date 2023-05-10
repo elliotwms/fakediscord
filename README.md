@@ -9,11 +9,10 @@ Once completed, `fakediscord` will enable you to:
 * Test offline, without interacting with the real Discord API
 * Test with multiple simulated users, bot and non-bot
 * Trigger server-side events to test commands etc., outside the 'official' bot flow
-* Spin up a test server with a test guild already configured (simplifies local testing)
+* Spin up a test instance with guilds and users preconfigured with YAML
 
 Of course, you should also test your bot manually before releasing to the public, as there's a few things `fakediscord` **doesn't** intend to implement, including:
 
-* Authentication - any token is valid with `fakediscord`
 * Authorization - any action is allowed
 
 ## [Events](https://discord.com/developers/docs/topics/gateway-events)
