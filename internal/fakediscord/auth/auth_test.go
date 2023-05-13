@@ -1,9 +1,10 @@
-package storage
+package auth
 
 import (
 	"testing"
 
 	"github.com/elliotwms/fakediscord/internal/fakediscord/builders"
+	"github.com/elliotwms/fakediscord/internal/fakediscord/storage"
 	"github.com/elliotwms/fakediscord/internal/snowflake"
 	"github.com/stretchr/testify/require"
 )
@@ -20,11 +21,22 @@ func TestUsers_Authenticate(t *testing.T) {
 		WithToken("foo_token").
 		Build()
 
-	Users.Store(u.ID, *u)
+	storage.Users.Store(u.ID, *u)
 
-	require.NotNil(t, Authenticate("foo_token"))
+	authedUser := Authenticate("foo_token")
+	require.NotNil(t, authedUser)
+
+	require.Equal(t, u, authedUser)
 }
 
 func TestUsers_Authenticate_TokenNotFound(t *testing.T) {
-	require.Nil(t, Authenticate("notfound"))
+	token := "notfound"
+	u := Authenticate(token)
+
+	require.NotNil(t, u)
+
+	require.NotEmpty(t, u.ID)
+	require.NotEmpty(t, u.Discriminator)
+	require.Len(t, u.Discriminator, 4)
+	require.Equal(t, token, u.Username)
 }

@@ -3,12 +3,12 @@ package ws
 import (
 	"encoding/json"
 	"errors"
+	"github.com/elliotwms/fakediscord/internal/fakediscord/auth"
 	"log"
 	"strings"
 	"time"
 
 	"github.com/bwmarrin/discordgo"
-	"github.com/elliotwms/fakediscord/internal/fakediscord/storage"
 	"github.com/gorilla/websocket"
 )
 
@@ -60,7 +60,7 @@ func establishConnection(c *websocket.Conn) error {
 
 	u, err := authUser(i.Token)
 	if err != nil {
-		//todo handle missing user with proper close (4004: "Authentication failed.")
+		log.Printf("error authing user: %s\n", err)
 		return c.Close()
 	}
 
@@ -79,7 +79,7 @@ func authUser(token string) (u *discordgo.User, err error) {
 		return nil, errors.New("malformed token")
 	}
 
-	return storage.Authenticate(s[1]), nil
+	return auth.Authenticate(s[1]), nil
 }
 
 func handleMessage(ws *websocket.Conn) error {

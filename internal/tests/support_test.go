@@ -7,8 +7,8 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func newSession(require *require.Assertions) *discordgo.Session {
-	session, err := discordgo.New("Bot token")
+func newSession(require *require.Assertions, token string) *discordgo.Session {
+	session, err := discordgo.New("Bot " + token)
 	require.NoError(err)
 
 	if os.Getenv("DEBUG") != "" {
