@@ -2,11 +2,12 @@ package auth
 
 import (
 	"fmt"
+	"log"
+	"math/rand"
+
 	"github.com/bwmarrin/discordgo"
 	"github.com/elliotwms/fakediscord/internal/fakediscord/builders"
 	"github.com/elliotwms/fakediscord/internal/fakediscord/storage"
-	"log"
-	"math/rand"
 )
 
 func Authenticate(token string) *discordgo.User {
