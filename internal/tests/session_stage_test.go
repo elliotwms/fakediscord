@@ -38,7 +38,13 @@ func (s *SessionStage) and() *SessionStage {
 }
 
 func (s *SessionStage) a_new_session() *SessionStage {
-	s.session = newSession(s.require)
+	s.session = newSession(s.require, "token")
+
+	return s
+}
+
+func (s *SessionStage) a_new_session_with_token(token string) *SessionStage {
+	s.session = newSession(s.require, token)
 
 	return s
 }
@@ -104,6 +110,12 @@ func (s *SessionStage) the_session_receives_guild_create_events() *SessionStage 
 		defaultTick,
 		"did not receive expected GUILD_CREATE events. Expected: '%d', actual: '%d'", n, currLen,
 	)
+
+	return s
+}
+
+func (s *SessionStage) the_session_has_username(u string) *SessionStage {
+	s.require.Equal(u, s.ready.User.Username)
 
 	return s
 }

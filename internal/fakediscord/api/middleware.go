@@ -5,7 +5,7 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/elliotwms/fakediscord/internal/fakediscord/storage"
+	pkgauth "github.com/elliotwms/fakediscord/internal/fakediscord/auth"
 	"github.com/gin-gonic/gin"
 )
 
@@ -18,12 +18,5 @@ func auth(c *gin.Context) {
 		return
 	}
 
-	u := storage.Authenticate(split[1])
-
-	if u == nil {
-		_ = c.AbortWithError(http.StatusUnauthorized, errors.New("token not found"))
-		return
-	}
-
-	c.Set(contextKeyUserID, u.ID)
+	c.Set(contextKeyUserID, pkgauth.Authenticate(split[1]).ID)
 }
