@@ -3,12 +3,12 @@ package ws
 import (
 	"encoding/json"
 	"errors"
-	"github.com/elliotwms/fakediscord/internal/fakediscord/auth"
 	"log"
 	"strings"
 	"time"
 
 	"github.com/bwmarrin/discordgo"
+	"github.com/elliotwms/fakediscord/internal/fakediscord/auth"
 	"github.com/gorilla/websocket"
 )
 
