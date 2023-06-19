@@ -17,6 +17,7 @@ type MessageStage struct {
 	messageSend *discordgo.MessageSend
 	messageID   string
 	attachments []*discordgo.MessageAttachment
+	embeds      []*discordgo.MessageEmbed
 }
 
 func NewMessageStage(t *testing.T) (given, then, when *MessageStage) {
@@ -158,4 +159,24 @@ func (s *MessageStage) the_message_has_the_author_as_the_session_user() {
 	message, err := s.session.State.Message(s.channel.ID, s.messageID)
 	s.require.NoError(err)
 	s.require.Equal(s.session.State.User.ID, message.Author.ID)
+}
+
+func (s *MessageStage) the_message_has_a_link() {
+	s.messageSend.Content += " https://github.com/elliotwms/fakediscord"
+}
+
+func (s *MessageStage) the_message_should_have_an_embed() *MessageStage {
+	return s.the_message_should_have_n_embeds(1)
+}
+
+func (s *MessageStage) the_message_should_have_n_embeds(n int) *MessageStage {
+	s.require.Eventually(func() bool {
+		m, err := s.session.ChannelMessage(s.channel.ID, s.messageID)
+
+		s.embeds = m.Embeds
+
+		return err == nil && len(m.Embeds) == n
+	}, defaultWait, defaultTick)
+
+	return s
 }
