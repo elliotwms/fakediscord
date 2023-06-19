@@ -7,6 +7,7 @@ import (
 	"image"
 	"log"
 	"net/http"
+	"regexp"
 	"strings"
 	"time"
 
@@ -16,6 +17,8 @@ import (
 	"github.com/elliotwms/fakediscord/internal/snowflake"
 	"github.com/gin-gonic/gin"
 )
+
+var stringContainsURLs = regexp.MustCompile(`((http|https|ftp)://(\S*))`)
 
 func channelController(r *gin.RouterGroup) {
 	r.DELETE("/:channel", deleteChannel)
@@ -185,7 +188,30 @@ func parseMessageSend(c *gin.Context) (*discordgo.MessageSend, error) {
 		return nil, fmt.Errorf("unhandled content type %s", c.ContentType())
 	}
 
+	messageSend.Embeds = append(messageSend.Embeds, getAdditionalEmbeds(messageSend.Content)...)
+
 	return &messageSend, nil
+}
+
+// getAdditionalEmbeds determines any additional embeds which Discord would typically add to a message, such as url
+// previews
+func getAdditionalEmbeds(content string) []*discordgo.MessageEmbed {
+	submatch := stringContainsURLs.FindAllStringSubmatch(content, -1)
+
+	var embeds []*discordgo.MessageEmbed
+
+	for _, s := range submatch {
+		url := s[0]
+
+		embeds = append(embeds, &discordgo.MessageEmbed{
+			URL:         url,
+			Type:        "rich",
+			Title:       url,
+			Description: url,
+		})
+	}
+
+	return embeds
 }
 
 func buildAttachments(channelID string, files []*discordgo.File) []*discordgo.MessageAttachment {
