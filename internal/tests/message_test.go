@@ -96,3 +96,17 @@ func TestMessage_WithImageAttachment(t *testing.T) {
 		the_message_should_have_an_attachment().and().
 		the_first_attachment_should_have_a_resolution_set()
 }
+
+func TestMessage_WithLink(t *testing.T) {
+	given, when, then := NewMessageStage(t)
+
+	given.
+		a_message().and().
+		the_message_has_a_link()
+
+	when.
+		the_message_is_sent()
+
+	then.
+		the_message_should_have_an_embed()
+}
