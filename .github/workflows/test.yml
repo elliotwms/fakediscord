@@ -24,6 +24,6 @@ jobs:
           fetch-depth: 0
       - uses: actions/setup-go@v5
       - name: golangci-lint
-        uses: golangci/golangci-lint-action@v3
+        uses: golangci/golangci-lint-action@v6
         with:
           version: latest
