@@ -2,11 +2,15 @@ package tests
 
 import (
 	"embed"
+	"fmt"
+	"os"
 	"testing"
 
+	"github.com/bwmarrin/discordgo"
 	"github.com/elliotwms/fakediscord/internal/fakediscord"
 	"github.com/elliotwms/fakediscord/pkg/config"
 	pkgfakediscord "github.com/elliotwms/fakediscord/pkg/fakediscord"
+	"github.com/stretchr/testify/require"
 	"gopkg.in/yaml.v2"
 )
 
@@ -43,4 +47,29 @@ func readConfig() config.Config {
 	}
 
 	return c
+}
+
+func newSession(require *require.Assertions, token string) *discordgo.Session {
+	session, err := discordgo.New("Bot " + token)
+	require.NoError(err)
+
+	if os.Getenv("DEBUG") != "" {
+		session.LogLevel = discordgo.LogDebug
+		session.Debug = true
+	}
+
+	session.State.MaxMessageCount = 100
+
+	return session
+}
+
+func setupGuild(s *discordgo.Session, name string) (*discordgo.Guild, *discordgo.Channel, error) {
+	guild, err := s.GuildCreate(fmt.Sprintf("%s_test", name))
+	if err != nil {
+		return nil, nil, err
+	}
+
+	channel, err := s.GuildChannelCreate(guild.ID, "test", discordgo.ChannelTypeGuildText)
+
+	return guild, channel, err
 }

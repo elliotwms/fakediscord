@@ -68,7 +68,7 @@ func establishConnection(c *websocket.Conn) error {
 		return err
 	}
 
-	go sendSignOnGuildCreateEvents(c)
+	sendSignOnGuildCreateEvents(c)
 
 	return nil
 }
