@@ -36,10 +36,6 @@ func NewChannelStage(t *testing.T) (*ChannelStage, *ChannelStage, *ChannelStage)
 	return s, s, s
 }
 
-func (s *ChannelStage) and() *ChannelStage {
-	return s
-}
-
 func (s *ChannelStage) a_channel_is_created_named(name string) *ChannelStage {
 	var err error
 	s.channel, err = s.session.GuildChannelCreate(s.guild.ID, name, discordgo.ChannelTypeGuildText)
