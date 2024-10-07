@@ -15,6 +15,7 @@ func guildsController(r *gin.RouterGroup) {
 	r.POST("", postGuild)
 	r.DELETE("/:guild", deleteGuild)
 
+	r.GET("/:guild/channels", getGuildChannels)
 	r.POST("/:guild/channels", postGuildChannels)
 }
 
@@ -63,6 +64,23 @@ func deleteGuild(c *gin.Context) {
 	c.Status(http.StatusNoContent)
 }
 
+// https://discord.com/developers/docs/resources/guild#get-guild-channels
+func getGuildChannels(c *gin.Context) {
+	channels := []discordgo.Channel{}
+
+	storage.Channels.Range(func(k, v interface{}) bool {
+		channel := v.(discordgo.Channel)
+		if channel.GuildID == c.Param("guild") {
+			channels = append(channels, channel)
+		}
+
+		return true
+	})
+
+	c.JSON(http.StatusOK, channels)
+}
+
+// https://discord.com/developers/docs/resources/guild#create-guild-channel
 func postGuildChannels(c *gin.Context) {
 	channel := discordgo.Channel{}
 

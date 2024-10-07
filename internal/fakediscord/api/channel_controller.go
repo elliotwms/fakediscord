@@ -21,6 +21,7 @@ import (
 var stringContainsURLs = regexp.MustCompile(`((http|https|ftp)://(\S*))`)
 
 func channelController(r *gin.RouterGroup) {
+	r.GET("/:channel", getChannel)
 	r.DELETE("/:channel", deleteChannel)
 
 	r.GET("/:channel/pins", getChannelPins)
@@ -45,6 +46,18 @@ func getUser(c *gin.Context) (discordgo.User, bool) {
 	return user, false
 }
 
+// https://discord.com/developers/docs/resources/channel#get-channel
+func getChannel(c *gin.Context) {
+	channel, ok := storage.Channels.Load(c.Param("channel"))
+	if !ok {
+		c.AbortWithStatus(http.StatusNotFound)
+		return
+	}
+
+	c.JSON(http.StatusOK, channel)
+}
+
+// https://discord.com/developers/docs/resources/channel#deleteclose-channel
 func deleteChannel(c *gin.Context) {
 	channel, ok := storage.Channels.LoadAndDelete(c.Param("channel"))
 	if !ok {

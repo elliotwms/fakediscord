@@ -17,5 +17,4 @@ func TestGenerateBeforeConfigure(t *testing.T) {
 func TestGenerate(t *testing.T) {
 	require.NoError(t, Configure(0))
 	require.NotEmpty(t, Generate())
-	t.Logf(Generate().String())
 }
