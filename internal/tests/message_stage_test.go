@@ -37,10 +37,7 @@ func (s *MessageStage) setup() {
 	s.require.NoError(s.session.Open())
 
 	var err error
-	s.guild, err = s.session.GuildCreate("message_test")
-	s.require.NoError(err)
-
-	s.channel, err = s.session.GuildChannelCreate(s.guild.ID, "test", discordgo.ChannelTypeGuildText)
+	s.guild, s.channel, err = setupGuild(s.session, "message")
 	s.require.NoError(err)
 }
 
