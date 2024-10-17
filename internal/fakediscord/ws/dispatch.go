@@ -41,7 +41,7 @@ func DispatchEvent(t string, body interface{}) error {
 }
 
 func Dispatch(e discordgo.Event) error {
-	slog.Info("dispatching event", slog.String("type", e.Type))
+	slog.Info("Dispatching event", slog.String("type", e.Type))
 
 	var err error
 
