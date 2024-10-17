@@ -1,15 +1,20 @@
 # fakediscord
 
-A highly experimental fake Discord server, intended to enable bot testing without calling the real Discord API,
+A highly experimental fake Discord server, intended to enable testing Discord bots without calling the real Discord API,
 analogous to [LocalStack](https://github.com/localstack/localstack).
 
-## Features
-Once completed, `fakediscord` will enable you to:
+This allows you to write integration tests for your bots, without depending on the Discord API.
 
-* Test offline, without interacting with the real Discord API
-* Test with multiple simulated users, bot and non-bot
-* Trigger server-side events to test commands etc., outside the 'official' bot flow
-* Spin up a test instance with guilds and users preconfigured with YAML
+```mermaid
+flowchart LR
+t["Your tests"] --> b["Your Bot"] --> d["Discord"]
+b --> f["fakediscord"]
+t --> f["fakediscord"]
+```
+
+## Features
+
+`fakediscord` fakes the HTTP and WebSocket endpoints of the Discord API, triggering corresponding events via the WebSocket connection. `fakediscord` pairs well with (and is based on the hard work of) [bwmarrin/discordgo](https://github.com/bwmarrin/discordgo).    
 
 Of course, you should also test your bot manually before releasing to the public, as there's a few things `fakediscord` **doesn't** intend to implement, including:
 
@@ -67,7 +72,7 @@ As we develop `fakediscord` we will be aiming to implement each of the documente
 - [ ] [Invite Delete](https://discord.com/developers/docs/topics/gateway-events#invite-delete)
 - [ ] [Message Create](https://discord.com/developers/docs/topics/gateway-events#message-create)
   - [x] Basic (via HTTP)
-  - [ ] Embeds
+  - [x] Embeds
   - [ ] Multipart
 - [ ] [Message Update](https://discord.com/developers/docs/topics/gateway-events#message-update)
 - [x] [Message Delete](https://discord.com/developers/docs/topics/gateway-events#message-delete)
