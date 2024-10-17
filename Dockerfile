@@ -6,7 +6,8 @@ WORKDIR /app
 COPY . .
 RUN go mod download
 
-RUN CGO_ENABLED=0 GOOS=linux go build -o /fakediscord ./cmd/main.go
+ARG APP_VERSION="v0.0.0+unknown"
+RUN CGO_ENABLED=0 GOOS=linux go build -ldflags "-X github.com/elliotwms/fakediscord/internal/fakediscord.Version=${APP_VERSION}" -o /fakediscord ./cmd/main.go
 
 FROM scratch
 COPY --from=builder /fakediscord /fakediscord

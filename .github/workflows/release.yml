@@ -61,3 +61,5 @@ jobs:
             ${{ steps.meta.outputs.tags }}
             ghcr.io/${{ github.repository }}:${{ needs.release.outputs.tag }}
           labels: ${{ steps.meta.outputs.labels }}
+          build-args: |
+            APP_VERSION=${{ needs.release.outputs.tag }}

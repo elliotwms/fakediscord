@@ -1,6 +1,7 @@
 package tests
 
 import (
+	"context"
 	"embed"
 	"fmt"
 	"os"
@@ -29,7 +30,7 @@ func setup() {
 	c := readConfig()
 
 	go func() {
-		if err := fakediscord.Run(c); err != nil {
+		if err := fakediscord.Run(context.Background(), c); err != nil {
 			panic(err)
 		}
 	}()

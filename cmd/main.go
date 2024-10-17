@@ -1,16 +1,22 @@
 package main
 
 import (
+	"context"
 	"gopkg.in/yaml.v2"
 	"log"
 	"os"
+	"os/signal"
+	"syscall"
 
 	"github.com/elliotwms/fakediscord/internal/fakediscord"
 	"github.com/elliotwms/fakediscord/pkg/config"
 )
 
 func main() {
-	if err := fakediscord.Run(readConfig()); err != nil {
+	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM, os.Interrupt)
+	defer stop()
+
+	if err := fakediscord.Run(ctx, readConfig()); err != nil {
 		panic(err)
 	}
 }
