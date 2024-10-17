@@ -36,6 +36,10 @@ func NewChannelStage(t *testing.T) (*ChannelStage, *ChannelStage, *ChannelStage)
 	return s, s, s
 }
 
+func (s *ChannelStage) and() *ChannelStage {
+	return s
+}
+
 func (s *ChannelStage) a_channel_is_created_named(name string) *ChannelStage {
 	var err error
 	s.channel, err = s.session.GuildChannelCreate(s.guild.ID, name, discordgo.ChannelTypeGuildText)
@@ -65,11 +69,13 @@ func (s *ChannelStage) a_channel_does_not_exist_named(name string) *ChannelStage
 	return s
 }
 
-func (s *ChannelStage) state_contains_the_channel() {
+func (s *ChannelStage) state_contains_the_channel() *ChannelStage {
 	s.require.Eventually(func() bool {
 		channel, err := s.session.State.Channel(s.channel.ID)
 		return !(err != nil || channel == nil)
 	}, time.Second, time.Millisecond*100)
+
+	return s
 }
 
 func (s *ChannelStage) state_does_not_contain_the_channel() *ChannelStage {
@@ -84,4 +90,21 @@ func (s *ChannelStage) state_does_not_contain_the_channel() *ChannelStage {
 func (s *ChannelStage) the_channel_is_deleted() {
 	_, err := s.session.ChannelDelete(s.channel.ID)
 	s.require.NoError(err)
+}
+
+func (s *ChannelStage) guild_has_channel() {
+	s.require.Eventually(func() bool {
+		channels, err := s.session.GuildChannels(s.guild.ID)
+		if err != nil {
+			return false
+		}
+
+		for _, c := range channels {
+			if c.ID == s.channel.ID {
+				return true
+			}
+		}
+
+		return false
+	}, time.Second, time.Millisecond*100)
 }
