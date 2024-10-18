@@ -12,7 +12,8 @@ func TestChannel_Create(t *testing.T) {
 		a_channel_is_created_named("foo")
 
 	then.
-		state_contains_the_channel()
+		state_contains_the_channel().and().
+		guild_has_channel()
 }
 
 func TestChannel_Delete(t *testing.T) {

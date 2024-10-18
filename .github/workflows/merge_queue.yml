@@ -1,7 +1,0 @@
-name: Validate merge queue
-on:
-  merge_group:
-
-jobs:
-  test:
-    uses: ./.github/workflows/test.yml

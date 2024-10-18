@@ -1,7 +1,7 @@
 package ws
 
 import (
-	"log"
+	"log/slog"
 
 	"github.com/bwmarrin/discordgo"
 	"github.com/elliotwms/fakediscord/internal/fakediscord/storage"
@@ -18,7 +18,7 @@ func sendSignOnGuildCreateEvents(ws *websocket.Conn) {
 }
 
 func guildCreate(ws *websocket.Conn, g discordgo.Guild) {
-	log.Print("SENDING GUILD_CREATE")
+	slog.With("guild_id", g.ID).Info("Sending GUILD_CREATE")
 
 	err := ws.WriteJSON(Event{
 		Sequence: sequence.Next(),
