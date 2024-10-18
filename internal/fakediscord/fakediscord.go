@@ -37,6 +37,7 @@ func Run(ctx context.Context, c config.Config) error {
 func generate(c config.Config) {
 	for _, user := range c.Users {
 		u := builders.NewUserFromConfig(user).Build()
+		slog.Info("Creating test user", "username", u.Username, "id", u.ID, "bot", u.Bot)
 
 		storage.Users.Store(u.ID, *u)
 	}
@@ -44,8 +45,11 @@ func generate(c config.Config) {
 	for _, guild := range c.Guilds {
 		g := builders.NewGuildFromConfig(guild).Build()
 
+		slog.Info("Creating test guild", "name", g.Name, "id", g.ID)
+
 		storage.Guilds.Store(g.ID, *g)
 		for _, channel := range g.Channels {
+			slog.Info("Creating test channel", "name", channel.Name, "id", channel.ID)
 			storage.Channels.Store(channel.ID, *channel)
 		}
 	}
