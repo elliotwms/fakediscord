@@ -31,7 +31,7 @@ func webhooksController(r *gin.RouterGroup) {
 func getResponse(c *gin.Context) {
 	mID, ok := storage.InteractionResponses.Load(c.Param("token"))
 	if !ok {
-		c.AbortWithError(http.StatusNotFound, errors.New("token not found"))
+		_ = c.AbortWithError(http.StatusNotFound, errors.New("token not found"))
 		return
 	}
 
