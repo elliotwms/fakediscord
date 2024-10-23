@@ -8,6 +8,7 @@ import (
 )
 
 func usersController(r *gin.RouterGroup) {
+	r.Use(auth)
 	r.GET("/:id/guilds", getUserGuilds)
 }
 
