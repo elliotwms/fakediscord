@@ -60,6 +60,16 @@ func createInteractionCallback(c *gin.Context) {
 
 	slog.Info("Received interaction callback", "id", id, "token", token, "type", interaction.Type)
 
+	// only allow callbacks once
+	_, ok := storage.InteractionCallbacks.LoadOrStore(id, struct{}{})
+	if ok {
+		c.JSON(http.StatusBadRequest, discordgo.APIErrorMessage{
+			Message: "Interaction has already been acknowledged.",
+			Code:    discordgo.ErrCodeInteractionHasAlreadyBeenAcknowledged,
+		})
+		return
+	}
+
 	switch interaction.Type {
 	// InteractionResponsePong is for ACK ping event.
 	case discordgo.InteractionResponsePong:

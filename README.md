@@ -1,9 +1,10 @@
 # fakediscord
 
-A highly experimental fake Discord server, intended to enable testing Discord bots without calling the real Discord API,
-analogous to [LocalStack](https://github.com/localstack/localstack).
+The aim of `fakediscord` is to replicate the behaviour of the Discord HTTP and Websocket APIs, based on the documentation and observed behaviour, in order to enable the integration testing of Discord bots without calling the real Discord API. 
 
-This allows you to write integration tests for your bots, without depending on the Discord API.
+Analogous to [LocalStack](https://github.com/localstack/localstack), `fakediscord` should be run locally using Docker when running your bot's tests.
+
+While written in Go, `fakediscord` can be used to test bots in any language, provided they adhere to Discord's specifications.
 
 ```mermaid
 flowchart LR
@@ -14,21 +15,19 @@ t --> f["fakediscord"]
 
 ## Features
 
-`fakediscord` fakes the HTTP and WebSocket endpoints of the Discord API, triggering corresponding events via the WebSocket connection. `fakediscord` pairs well with (and is based on the hard work of) [bwmarrin/discordgo](https://github.com/bwmarrin/discordgo). While written in Go, `fakediscord` can be used to test bots in any language, provided they adhere to Discord's specifications.
+`fakediscord` fakes the HTTP and WebSocket endpoints of the Discord API, triggering corresponding events via the WebSocket connection. `fakediscord` pairs well with (and is based on the hard work of) [bwmarrin/discordgo](https://github.com/bwmarrin/discordgo). 
 
-Of course, you should also test your bot manually before releasing to the public, as there's a few things `fakediscord` **doesn't** intend to implement, including:
-
-* Authorization - any action is allowed
+Of course, you should also test your bot manually before releasing to the public: there are many features currently not present, such as authorization, -- any action is currently allowed.
 
 ## Usage
 
-`fakediscord` should work with any Discord client in any language, and is intended to be run via a Docker container:
+`fakediscord` should work with any Discord client in any language, and is intended to be run via Docker:
 
 ```shell
-docker run ghcr.io/elliotwms/fakediscord:{version}
+docker run -p 8080:8080 ghcr.io/elliotwms/fakediscord:{version}
 ```
 
-It is possible to provide a `config.yml` file to bootstrap users and guilds: 
+It is possible to provide a `config.yml` file to bootstrap users and guilds (todo: document config): 
 
 ```yaml
 services:
