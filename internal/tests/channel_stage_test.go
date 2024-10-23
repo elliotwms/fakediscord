@@ -19,7 +19,7 @@ type ChannelStage struct {
 func NewChannelStage(t *testing.T) (*ChannelStage, *ChannelStage, *ChannelStage) {
 	r := require.New(t)
 
-	session := newSession(r, "token")
+	session := newSession(r, botToken)
 	s := &ChannelStage{
 		t:       t,
 		require: r,

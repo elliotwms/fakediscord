@@ -15,6 +15,8 @@ import (
 	"gopkg.in/yaml.v2"
 )
 
+const botToken = "token"
+
 //go:embed files/config.yml
 var configDir embed.FS
 

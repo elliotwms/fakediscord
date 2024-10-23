@@ -25,7 +25,7 @@ func NewMessageStage(t *testing.T) (given, then, when *MessageStage) {
 
 	s := &MessageStage{
 		require: r,
-		session: newSession(r, "token"),
+		session: newSession(r, botToken),
 	}
 
 	s.setup()

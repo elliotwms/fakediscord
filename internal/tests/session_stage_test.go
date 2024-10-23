@@ -38,7 +38,7 @@ func (s *SessionStage) and() *SessionStage {
 }
 
 func (s *SessionStage) a_new_session() *SessionStage {
-	s.session = newSession(s.require, "token")
+	s.session = newSession(s.require, botToken)
 
 	return s
 }

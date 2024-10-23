@@ -12,9 +12,10 @@ import (
 type Client struct {
 	baseURL string
 	http    *http.Client
+	token   string
 }
 
-func NewClient() *Client {
+func NewClient(token string) *Client {
 	endpoint := discordgo.EndpointDiscord
 
 	if endpoint == "https://discord.com/" {
@@ -24,6 +25,7 @@ func NewClient() *Client {
 	return &Client{
 		baseURL: endpoint,
 		http:    http.DefaultClient,
+		token:   token,
 	}
 }
 
@@ -45,7 +47,7 @@ func (c *Client) Interaction(i *discordgo.InteractionCreate) (*discordgo.Interac
 		return nil, fmt.Errorf("failed to marshal interaction: %w", err)
 	}
 
-	res, err := c.http.Post(c.baseURL+"api/v"+discordgo.APIVersion+"/interactions", "application/json", bytes.NewBuffer(bs))
+	res, err := c.do(http.MethodPost, "interactions", bs)
 	if err != nil {
 		return nil, fmt.Errorf("failed to send interaction: %w", err)
 	}
@@ -62,4 +64,17 @@ func (c *Client) Interaction(i *discordgo.InteractionCreate) (*discordgo.Interac
 	}
 
 	return i2, nil
+}
+
+func (c *Client) do(method string, path string, bs []byte) (*http.Response, error) {
+	u := c.baseURL + "api/v" + discordgo.APIVersion + "/" + path
+	req, err := http.NewRequest(method, u, bytes.NewBuffer(bs))
+	if err != nil {
+		return nil, fmt.Errorf("failed to create request: %w", err)
+	}
+
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Authorization", "Bot "+c.token)
+
+	return c.http.Do(req)
 }

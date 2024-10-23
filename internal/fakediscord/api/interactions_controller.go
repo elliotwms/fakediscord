@@ -1,6 +1,7 @@
 package api
 
 import (
+	"errors"
 	"log/slog"
 	"net/http"
 	"time"
@@ -14,7 +15,7 @@ import (
 
 func interactionsController(r *gin.RouterGroup) {
 	// internal endpoint (not Discord) for initiating interactions
-	r.POST("/", createInteraction)
+	r.POST("/", auth, createInteraction)
 
 	// https://discord.com/developers/docs/interactions/receiving-and-responding#interaction-callback
 	r.POST("/:id/:token/callback", createInteractionCallback)
@@ -29,9 +30,16 @@ func createInteraction(c *gin.Context) {
 		return
 	}
 
+	u, ok := storage.Users.Load(c.GetString(contextKeyUserID))
+	if !ok {
+		_ = c.AbortWithError(http.StatusInternalServerError, errors.New("user not found"))
+		return
+	}
+
 	// generate ID and token
 	interaction.ID = snowflake.Generate().String()
 	interaction.Token = snowflake.Generate().String()
+	interaction.AppID = u.(discordgo.User).ID
 
 	storage.Interactions.Store(interaction.Token, *interaction.Interaction)
 

@@ -25,10 +25,13 @@ func NewInteractionStage(t *testing.T) (given, when, then *InteractionsStage) {
 	s := &InteractionsStage{
 		t:       t,
 		require: r,
-		session: newSession(r, "token"),
+		session: newSession(r, botToken),
 	}
 
 	s.require.NoError(s.session.Open())
+	t.Cleanup(func() {
+		s.require.NoError(s.session.Close())
+	})
 
 	var err error
 	s.guild, s.channel, err = setupGuild(s.session, "message")
@@ -51,7 +54,7 @@ func (s *InteractionsStage) a_registered_message_command_handler() *Interactions
 
 func (s *InteractionsStage) an_interaction_is_triggered() *InteractionsStage {
 	var err error
-	s.interaction, err = fakediscord.NewClient().Interaction(&discordgo.InteractionCreate{
+	s.interaction, err = fakediscord.NewClient(botToken).Interaction(&discordgo.InteractionCreate{
 		Interaction: &discordgo.Interaction{
 			Type: discordgo.InteractionApplicationCommand,
 			Data: discordgo.ApplicationCommandInteractionData{},
@@ -73,6 +76,7 @@ func (s *InteractionsStage) the_command_handler_should_have_been_triggered() *In
 func (s *InteractionsStage) the_interaction_should_be_valid() *InteractionsStage {
 	s.require.NotEmpty(s.interaction.ID)
 	s.require.NotEmpty(s.interaction.Token)
+	s.require.NotEmpty(s.interaction.AppID)
 
 	return s
 }
