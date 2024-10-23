@@ -3,6 +3,7 @@ package api
 import (
 	"log/slog"
 	"net/http"
+	"time"
 
 	"github.com/bwmarrin/discordgo"
 	"github.com/elliotwms/fakediscord/internal/fakediscord/storage"
@@ -28,10 +29,8 @@ func createInteraction(c *gin.Context) {
 		return
 	}
 
-	id := snowflake.Generate().String()
-	interaction.ID = id
-
-	// create continuity token
+	// generate ID and token
+	interaction.ID = snowflake.Generate().String()
 	interaction.Token = snowflake.Generate().String()
 
 	storage.Interactions.Store(interaction.Token, *interaction.Interaction)
@@ -76,7 +75,7 @@ func createInteractionCallback(c *gin.Context) {
 		//no-op
 	// InteractionResponseChannelMessageWithSource is for responding with a message, showing the user's input.
 	case discordgo.InteractionResponseChannelMessageWithSource:
-		c.AbortWithStatus(http.StatusNotImplemented)
+		handleMessageInteractionResponse(c, interaction, token)
 	// InteractionResponseDeferredChannelMessageWithSource acknowledges that the event was received, and that a follow-up will come later.
 	case discordgo.InteractionResponseDeferredChannelMessageWithSource:
 		// no-op
@@ -95,4 +94,30 @@ func createInteractionCallback(c *gin.Context) {
 	default:
 		c.AbortWithStatus(http.StatusBadRequest)
 	}
+}
+
+func handleMessageInteractionResponse(c *gin.Context, res *discordgo.InteractionResponse, token string) {
+	v, ok := storage.Interactions.Load(token)
+	if !ok {
+		c.AbortWithStatus(http.StatusNotFound)
+		return
+	}
+
+	i := v.(discordgo.Interaction)
+
+	m := discordgo.Message{
+		ID:         snowflake.Generate().String(),
+		Type:       discordgo.MessageTypeReply,
+		ChannelID:  i.ChannelID,
+		GuildID:    i.GuildID,
+		Content:    res.Data.Content,
+		Embeds:     res.Data.Embeds,
+		Components: res.Data.Components,
+		Timestamp:  time.Now(),
+	}
+
+	storage.InteractionResponses.Store(token, m.ID)
+	storage.Messages.Store(m.ID, m)
+
+	_ = ws.DispatchEvent("MESSAGE_CREATE", m)
 }

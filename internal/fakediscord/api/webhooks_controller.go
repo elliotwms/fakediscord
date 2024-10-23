@@ -1,6 +1,7 @@
 package api
 
 import (
+	"errors"
 	"fmt"
 	"log/slog"
 	"net/http"
@@ -30,14 +31,14 @@ func webhooksController(r *gin.RouterGroup) {
 func getResponse(c *gin.Context) {
 	mID, ok := storage.InteractionResponses.Load(c.Param("token"))
 	if !ok {
-		c.AbortWithStatus(http.StatusNotFound)
+		c.AbortWithError(http.StatusNotFound, errors.New("token not found"))
 		return
 	}
 
 	slog.Info("loading message", "id", mID)
 	m, ok := storage.Messages.Load(mID)
 	if !ok {
-		_ = c.AbortWithError(http.StatusNotFound, fmt.Errorf("message not found"))
+		_ = c.AbortWithError(http.StatusNotFound, errors.New("message not found"))
 		return
 	}
 
@@ -64,6 +65,7 @@ func patchResponse(c *gin.Context) {
 
 	v, ok = storage.Messages.LoadOrStore(id, discordgo.Message{
 		ID:        id.(string),
+		Type:      discordgo.MessageTypeReply,
 		ChannelID: interaction.ChannelID,
 		GuildID:   interaction.GuildID,
 		Timestamp: time.Now(),
