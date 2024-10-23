@@ -8,6 +8,7 @@ import (
 )
 
 func applicationsController(r *gin.RouterGroup) {
+	r.Use(auth)
 	r.POST("/:application/guilds/:guild/commands", createGuildApplicationCommands)
 }
 

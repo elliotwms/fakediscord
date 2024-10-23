@@ -7,6 +7,7 @@ import (
 )
 
 func gatewayController(r *gin.RouterGroup) {
+	r.Use(auth)
 	r.GET("/", getGateway)
 }
 

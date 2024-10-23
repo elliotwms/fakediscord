@@ -31,6 +31,10 @@ func NewUserFromConfig(config config.User) *User {
 		user.WithToken(config.Token)
 	}
 
+	if config.Bot {
+		user.Bot()
+	}
+
 	return user
 }
 
@@ -46,6 +50,12 @@ func (u *User) WithID(s string) *User {
 
 func (u *User) WithToken(token string) *User {
 	u.u.Token = token
+
+	return u
+}
+
+func (u *User) Bot() *User {
+	u.u.Bot = true
 
 	return u
 }

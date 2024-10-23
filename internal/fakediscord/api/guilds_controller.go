@@ -12,6 +12,7 @@ import (
 )
 
 func guildsController(r *gin.RouterGroup) {
+	r.Use(auth)
 	r.POST("", postGuild)
 	r.DELETE("/:guild", deleteGuild)
 

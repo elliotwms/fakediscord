@@ -21,6 +21,8 @@ import (
 var stringContainsURLs = regexp.MustCompile(`((http|https|ftp)://(\S*))`)
 
 func channelController(r *gin.RouterGroup) {
+	r.Use(auth)
+
 	r.GET("/:channel", getChannel)
 	r.DELETE("/:channel", deleteChannel)
 
