@@ -11,11 +11,11 @@ import (
 	"github.com/elliotwms/fakediscord/internal/fakediscord"
 	"github.com/elliotwms/fakediscord/pkg/config"
 	pkgfakediscord "github.com/elliotwms/fakediscord/pkg/fakediscord"
-	"github.com/stretchr/testify/require"
 	"gopkg.in/yaml.v2"
 )
 
 const botToken = "token"
+const appID = "1290742494824366183"
 
 //go:embed files/config.yml
 var configDir embed.FS
@@ -52,9 +52,8 @@ func readConfig() config.Config {
 	return c
 }
 
-func newSession(require *require.Assertions, token string) *discordgo.Session {
-	session, err := discordgo.New("Bot " + token)
-	require.NoError(err)
+func newSession(token string) *discordgo.Session {
+	session, _ := discordgo.New("Bot " + token)
 
 	if os.Getenv("DEBUG") != "" {
 		session.LogLevel = discordgo.LogDebug

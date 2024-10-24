@@ -1,5 +1,6 @@
 users:
   - username: HAL
+    id: 1290742494824366183
     discriminator: "9000"
     bot: true
     token: token
