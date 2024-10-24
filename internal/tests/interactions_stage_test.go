@@ -25,7 +25,7 @@ func NewInteractionStage(t *testing.T) (given, when, then *InteractionsStage) {
 	s := &InteractionsStage{
 		t:       t,
 		require: r,
-		session: newSession(r, botToken),
+		session: newSession(botToken),
 	}
 
 	s.require.NoError(s.session.Open())
