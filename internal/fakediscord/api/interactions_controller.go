@@ -117,8 +117,8 @@ var interactionHandlers = map[discordgo.InteractionResponseType]interactionHandl
 }
 
 func handlePong(*discordgo.Interaction, *discordgo.InteractionResponse) (int, error) {
-	// I don't think you can even send Pong responses back via HTTP?
-	return http.StatusOK, nil
+	// responding to pong via callback does not work 🤷
+	return http.StatusNotFound, nil
 }
 
 func handleMessageInteractionResponse(i *discordgo.Interaction, res *discordgo.InteractionResponse) (statusCode int, err error) {
