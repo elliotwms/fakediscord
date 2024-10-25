@@ -1,7 +1,9 @@
 package api
 
 import (
+	"encoding/base64"
 	"errors"
+	"fmt"
 	"log/slog"
 	"net/http"
 
@@ -36,9 +38,16 @@ func createInteraction(c *gin.Context) {
 		return
 	}
 
+	id := snowflake.Generate().String()
+
+	// token appears to be just random bytes
+	token := base64.StdEncoding.EncodeToString([]byte(
+		fmt.Sprintf("interaction:%s:%s", id, snowflake.Generate().String()),
+	))
+
 	// generate ID and token
-	interaction.ID = snowflake.Generate().String()
-	interaction.Token = snowflake.Generate().String()
+	interaction.ID = id
+	interaction.Token = token
 	interaction.AppID = u.(discordgo.User).ID
 
 	storage.Interactions.Store(interaction.Token, *interaction.Interaction)
@@ -84,65 +93,57 @@ func postCallback(c *gin.Context) {
 		return
 	}
 
-	switch res.Type {
-	// InteractionResponsePong is for ACK ping event.
-	case discordgo.InteractionResponsePong:
-		//no-op
-	// InteractionResponseChannelMessageWithSource is for responding with a message, showing the user's input.
-	case discordgo.InteractionResponseChannelMessageWithSource:
-		handleMessageInteractionResponse(c, res, token)
-	// InteractionResponseDeferredChannelMessageWithSource acknowledges that the event was received, and that a follow-up will come later.
-	case discordgo.InteractionResponseDeferredChannelMessageWithSource:
-		emitLoadingMessage(c, i, res, token)
-	// InteractionResponseDeferredMessageUpdate acknowledges that the message component interaction event was received, and message will be updated later.
-	case discordgo.InteractionResponseDeferredMessageUpdate:
-		c.AbortWithStatus(http.StatusNotImplemented)
-	// InteractionResponseUpdateMessage is for updating the message to which message component was attached.
-	case discordgo.InteractionResponseUpdateMessage:
-		c.AbortWithStatus(http.StatusNotImplemented)
-	// InteractionApplicationCommandAutocompleteResult shows autocompletion results. Autocomplete interaction only.
-	case discordgo.InteractionApplicationCommandAutocompleteResult:
-		c.AbortWithStatus(http.StatusNotImplemented)
-	// InteractionResponseModal is for responding to an interaction with a modal window.
-	case discordgo.InteractionResponseModal:
-		c.AbortWithStatus(http.StatusNotImplemented)
-	default:
-		c.AbortWithStatus(http.StatusBadRequest)
-	}
-}
-
-func handleMessageInteractionResponse(c *gin.Context, res *discordgo.InteractionResponse, token string) {
-	v, ok := storage.Interactions.Load(token)
+	h, ok := interactionHandlers[res.Type]
 	if !ok {
-		c.AbortWithStatus(http.StatusNotFound)
+		c.AbortWithStatus(http.StatusNotImplemented)
 		return
 	}
 
-	i := v.(discordgo.Interaction)
-
-	m := builders.NewMessage(i.User, i.ChannelID, i.GuildID).
-		WithType(discordgo.MessageTypeReply).
-		WithContent(res.Data.Content).
-		WithEmbeds(res.Data.Embeds).
-		WithComponents(res.Data.Components).
-		Build()
-
-	storage.InteractionResponses.Store(token, m.ID)
-
-	_, err := sendMessage(m)
+	code, err := h(&i, res)
 	if err != nil {
 		_ = c.AbortWithError(http.StatusInternalServerError, err)
 		return
 	}
 
-	c.Status(http.StatusNoContent)
+	c.Status(code)
 }
 
-func emitLoadingMessage(c *gin.Context, i discordgo.Interaction, res *discordgo.InteractionResponse, token string) {
+type interactionHandler func(i *discordgo.Interaction, res *discordgo.InteractionResponse) (statusCode int, err error)
+
+var interactionHandlers = map[discordgo.InteractionResponseType]interactionHandler{
+	discordgo.InteractionResponsePong:                             handlePong,
+	discordgo.InteractionResponseChannelMessageWithSource:         handleMessageInteractionResponse,
+	discordgo.InteractionResponseDeferredChannelMessageWithSource: emitLoadingMessage,
+}
+
+func handlePong(*discordgo.Interaction, *discordgo.InteractionResponse) (int, error) {
+	// I don't think you can even send Pong responses back via HTTP?
+	return http.StatusOK, nil
+}
+
+func handleMessageInteractionResponse(i *discordgo.Interaction, res *discordgo.InteractionResponse) (statusCode int, err error) {
+	m := builders.NewMessage(i.User, i.ChannelID, i.GuildID).
+		WithType(discordgo.MessageTypeReply).
+		WithContent(res.Data.Content).
+		WithEmbeds(res.Data.Embeds).
+		WithComponents(res.Data.Components).
+		WithFlags(0). // remove loading flag if exists
+		Build()
+
+	storage.InteractionResponses.Store(i.Token, m.ID)
+
+	_, err = sendMessage(m)
+	if err != nil {
+		return
+	}
+
+	return http.StatusNoContent, nil
+}
+
+func emitLoadingMessage(i *discordgo.Interaction, _ *discordgo.InteractionResponse) (statusCode int, err error) {
 	v, ok := storage.Users.Load(i.AppID)
 	if !ok {
-		c.AbortWithStatus(http.StatusNotFound)
-		return
+		return http.StatusNotFound, nil
 	}
 	u := v.(discordgo.User)
 
@@ -152,13 +153,12 @@ func emitLoadingMessage(c *gin.Context, i discordgo.Interaction, res *discordgo.
 		Build()
 
 	// store the initial response so it can be updated later
-	storage.InteractionResponses.Store(token, m.ID)
+	storage.InteractionResponses.Store(i.Token, m.ID)
 
-	_, err := sendMessage(m)
+	_, err = sendMessage(m)
 	if err != nil {
-		_ = c.AbortWithError(http.StatusInternalServerError, err)
 		return
 	}
 
-	c.Status(http.StatusNoContent)
+	return http.StatusNoContent, nil
 }
