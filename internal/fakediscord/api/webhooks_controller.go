@@ -5,11 +5,10 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
-	"time"
 
 	"github.com/bwmarrin/discordgo"
+	"github.com/elliotwms/fakediscord/internal/fakediscord/builders"
 	"github.com/elliotwms/fakediscord/internal/fakediscord/storage"
-	"github.com/elliotwms/fakediscord/internal/fakediscord/ws"
 	"github.com/elliotwms/fakediscord/internal/snowflake"
 	"github.com/gin-gonic/gin"
 )
@@ -63,14 +62,20 @@ func patchResponse(c *gin.Context) {
 
 	id, _ := storage.InteractionResponses.LoadOrStore(token, snowflake.Generate().String())
 
-	v, ok = storage.Messages.LoadOrStore(id, discordgo.Message{
-		ID:        id.(string),
-		Type:      discordgo.MessageTypeReply,
-		ChannelID: interaction.ChannelID,
-		GuildID:   interaction.GuildID,
-		Timestamp: time.Now(),
-		// todo author -- should be bot user, but do not have bot token in this context
-	})
+	v, ok = storage.Users.Load(interaction.AppID)
+	if !ok {
+		_ = c.AbortWithError(http.StatusNotFound, fmt.Errorf("user not found"))
+		return
+	}
+	user := v.(discordgo.User)
+
+	v, ok = storage.Messages.LoadOrStore(
+		id,
+		*builders.NewMessage(&user, interaction.ChannelID, interaction.GuildID).
+			WithID(id.(string)).
+			WithType(discordgo.MessageTypeReply).
+			Build(),
+	)
 	if !ok {
 		slog.Info("message not found, creating new message", "id", id, "token", token)
 	}
@@ -78,20 +83,13 @@ func patchResponse(c *gin.Context) {
 
 	m = updateMessage(m, edit)
 
-	// store the updated message
-	storage.Messages.Store(id, m)
-	slog.Info("Stored message", "id", id, "mID", m.ID, "token", token, "content", m.Content)
-
-	t := "MESSAGE_CREATE"
-	if !ok {
-		t = "MESSAGE_UPDATE"
-	}
-	if err := ws.DispatchEvent(t, m); err != nil {
+	mc, err := sendMessage(&m)
+	if err != nil {
 		_ = c.AbortWithError(http.StatusInternalServerError, err)
 		return
 	}
 
-	c.JSON(http.StatusOK, m)
+	c.JSON(http.StatusOK, mc)
 }
 
 func updateMessage(m discordgo.Message, edit *discordgo.WebhookEdit) discordgo.Message {

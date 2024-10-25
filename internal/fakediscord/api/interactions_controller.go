@@ -4,9 +4,9 @@ import (
 	"errors"
 	"log/slog"
 	"net/http"
-	"time"
 
 	"github.com/bwmarrin/discordgo"
+	"github.com/elliotwms/fakediscord/internal/fakediscord/builders"
 	"github.com/elliotwms/fakediscord/internal/fakediscord/storage"
 	"github.com/elliotwms/fakediscord/internal/fakediscord/ws"
 	"github.com/elliotwms/fakediscord/internal/snowflake"
@@ -18,7 +18,7 @@ func interactionsController(r *gin.RouterGroup) {
 	r.POST("/", auth, createInteraction)
 
 	// https://discord.com/developers/docs/interactions/receiving-and-responding#interaction-callback
-	r.POST("/:id/:token/callback", createInteractionCallback)
+	r.POST("/:id/:token/callback", postCallback)
 }
 
 func createInteraction(c *gin.Context) {
@@ -55,20 +55,27 @@ func createInteraction(c *gin.Context) {
 	c.JSON(http.StatusCreated, interaction)
 }
 
-func createInteractionCallback(c *gin.Context) {
-	interaction := &discordgo.InteractionResponse{}
+func postCallback(c *gin.Context) {
+	res := &discordgo.InteractionResponse{}
 
-	if err := c.BindJSON(interaction); err != nil {
+	if err := c.BindJSON(res); err != nil {
 		return
 	}
 
-	id := c.Param("id")
-	token := c.Param("token")
+	id, token := c.Param("id"), c.Param("token")
 
-	slog.Info("Received interaction callback", "id", id, "token", token, "type", interaction.Type)
+	slog.Info("Received interaction callback", "id", id, "token", token, "type", res.Type)
+
+	// get the original interaction
+	v, ok := storage.Interactions.Load(token)
+	if !ok {
+		c.AbortWithStatus(http.StatusNotFound)
+		return
+	}
+	i := v.(discordgo.Interaction)
 
 	// only allow callbacks once
-	_, ok := storage.InteractionCallbacks.LoadOrStore(id, struct{}{})
+	_, ok = storage.InteractionCallbacks.LoadOrStore(id, struct{}{})
 	if ok {
 		c.JSON(http.StatusBadRequest, discordgo.APIErrorMessage{
 			Message: "Interaction has already been acknowledged.",
@@ -77,16 +84,16 @@ func createInteractionCallback(c *gin.Context) {
 		return
 	}
 
-	switch interaction.Type {
+	switch res.Type {
 	// InteractionResponsePong is for ACK ping event.
 	case discordgo.InteractionResponsePong:
 		//no-op
 	// InteractionResponseChannelMessageWithSource is for responding with a message, showing the user's input.
 	case discordgo.InteractionResponseChannelMessageWithSource:
-		handleMessageInteractionResponse(c, interaction, token)
+		handleMessageInteractionResponse(c, res, token)
 	// InteractionResponseDeferredChannelMessageWithSource acknowledges that the event was received, and that a follow-up will come later.
 	case discordgo.InteractionResponseDeferredChannelMessageWithSource:
-		// no-op
+		emitLoadingMessage(c, i, res, token)
 	// InteractionResponseDeferredMessageUpdate acknowledges that the message component interaction event was received, and message will be updated later.
 	case discordgo.InteractionResponseDeferredMessageUpdate:
 		c.AbortWithStatus(http.StatusNotImplemented)
@@ -113,19 +120,45 @@ func handleMessageInteractionResponse(c *gin.Context, res *discordgo.Interaction
 
 	i := v.(discordgo.Interaction)
 
-	m := discordgo.Message{
-		ID:         snowflake.Generate().String(),
-		Type:       discordgo.MessageTypeReply,
-		ChannelID:  i.ChannelID,
-		GuildID:    i.GuildID,
-		Content:    res.Data.Content,
-		Embeds:     res.Data.Embeds,
-		Components: res.Data.Components,
-		Timestamp:  time.Now(),
-	}
+	m := builders.NewMessage(i.User, i.ChannelID, i.GuildID).
+		WithType(discordgo.MessageTypeReply).
+		WithContent(res.Data.Content).
+		WithEmbeds(res.Data.Embeds).
+		WithComponents(res.Data.Components).
+		Build()
 
 	storage.InteractionResponses.Store(token, m.ID)
-	storage.Messages.Store(m.ID, m)
 
-	_ = ws.DispatchEvent("MESSAGE_CREATE", m)
+	_, err := sendMessage(m)
+	if err != nil {
+		_ = c.AbortWithError(http.StatusInternalServerError, err)
+		return
+	}
+
+	c.Status(http.StatusNoContent)
+}
+
+func emitLoadingMessage(c *gin.Context, i discordgo.Interaction, res *discordgo.InteractionResponse, token string) {
+	v, ok := storage.Users.Load(i.AppID)
+	if !ok {
+		c.AbortWithStatus(http.StatusNotFound)
+		return
+	}
+	u := v.(discordgo.User)
+
+	m := builders.NewMessage(&u, i.ChannelID, i.GuildID).
+		WithType(discordgo.MessageTypeReply).
+		WithFlags(discordgo.MessageFlagsLoading).
+		Build()
+
+	// store the initial response so it can be updated later
+	storage.InteractionResponses.Store(token, m.ID)
+
+	_, err := sendMessage(m)
+	if err != nil {
+		_ = c.AbortWithError(http.StatusInternalServerError, err)
+		return
+	}
+
+	c.Status(http.StatusNoContent)
 }
