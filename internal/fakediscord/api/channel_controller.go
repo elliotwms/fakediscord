@@ -73,14 +73,16 @@ func deleteChannel(c *gin.Context) {
 
 // https://discord.com/developers/docs/resources/channel#get-pinned-messages
 func getChannelPins(c *gin.Context) {
-	var messages []discordgo.Message
+	var messages []*discordgo.Message
 
 	pins := storage.Pins.Load(c.Param("channel"))
 	for _, pin := range pins {
-		v, ok := storage.Messages.Load(pin)
-		if ok {
-			messages = append(messages, v.(discordgo.Message))
+		message, err := storage.State.Message(c.Param("channel"), pin)
+		if err != nil {
+			handleStateErr(c, err)
+			return
 		}
+		messages = append(messages, message)
 	}
 
 	c.JSON(http.StatusOK, messages)
@@ -111,11 +113,12 @@ func putChannelPin(c *gin.Context) {
 }
 
 func getChannelMessage(c *gin.Context) {
-	m, ok := storage.Messages.Load(c.Param("message"))
-	if !ok {
-		c.AbortWithStatus(http.StatusNotFound)
+	m, err := storage.State.Message(c.Param("channel"), c.Param("message"))
+	if err != nil {
+		handleStateErr(c, err)
 		return
 	}
+
 	c.JSON(http.StatusOK, m)
 }
 
@@ -263,15 +266,20 @@ func isImage(contentType string) bool {
 }
 
 func deleteChannelMessage(c *gin.Context) {
-	m, ok := storage.Messages.LoadAndDelete(c.Param("message"))
-	if !ok {
-		c.AbortWithStatus(http.StatusNotFound)
+	m, err := storage.State.Message(c.Param("channel"), c.Param("message"))
+	if err != nil {
+		handleStateErr(c, err)
 		return
 	}
 
-	message := m.(discordgo.Message)
-	err := ws.DispatchEvent("MESSAGE_DELETE", discordgo.MessageDelete{
-		Message: &message,
+	err = storage.State.MessageRemove(m)
+	if err != nil {
+		handleStateErr(c, err)
+		return
+	}
+
+	err = ws.DispatchEvent("MESSAGE_DELETE", discordgo.MessageDelete{
+		Message: m,
 	})
 	if err != nil {
 		_ = c.AbortWithError(http.StatusInternalServerError, err)
@@ -347,17 +355,15 @@ func putMessageReaction(c *gin.Context) {
 
 // https://discord.com/developers/docs/resources/message#delete-all-reactions
 func deleteMessageReactions(c *gin.Context) {
-	v, ok := storage.Messages.Load(c.Param("message"))
-	if !ok {
-		c.Status(http.StatusNotFound)
+	m, err := storage.State.Message(c.Param("channel"), c.Param("message"))
+	if err != nil {
+		handleStateErr(c, err)
 		return
 	}
 
-	m := v.(discordgo.Message)
-
 	storage.Reactions.DeleteMessageReactions(c.Param("message"))
 
-	err := ws.DispatchEvent("MESSAGE_REACTION_REMOVE_ALL", discordgo.MessageReactionRemoveAll{
+	err = ws.DispatchEvent("MESSAGE_REACTION_REMOVE_ALL", discordgo.MessageReactionRemoveAll{
 		MessageReaction: &discordgo.MessageReaction{
 			MessageID: m.ID,
 			ChannelID: m.ChannelID,

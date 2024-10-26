@@ -3,6 +3,7 @@ package fakediscord
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 
@@ -53,6 +54,18 @@ func (c *Client) Interaction(i *discordgo.InteractionCreate) (*discordgo.Interac
 	}
 
 	if res.StatusCode != http.StatusCreated {
+		if res.StatusCode == http.StatusBadRequest {
+			s := &struct {
+				Error string `json:"error"`
+			}{}
+
+			err = json.NewDecoder(res.Body).Decode(s)
+			if err != nil {
+				return nil, fmt.Errorf("failed to parse interaction response: %w", err)
+			}
+
+			return nil, errors.New(s.Error)
+		}
 		return nil, fmt.Errorf("unexpected status code: %d", res.StatusCode)
 	}
 

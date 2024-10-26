@@ -27,10 +27,17 @@ func getUser(c *gin.Context) (discordgo.User, bool) {
 func sendMessage(m *discordgo.Message) (*discordgo.MessageCreate, error) {
 	t := "MESSAGE_CREATE"
 
-	_, loaded := storage.Messages.Swap(m.ID, *m)
-	if loaded {
+	// check if message already exists
+	_, err := storage.State.Message(m.ChannelID, m.ID)
+	if err == nil {
 		// message already exists, update it instead
 		t = "MESSAGE_UPDATE"
+	}
+
+	// update state with latest message
+	err = storage.State.MessageAdd(m)
+	if err != nil {
+		return nil, err
 	}
 
 	messageCreate := &discordgo.MessageCreate{Message: m}

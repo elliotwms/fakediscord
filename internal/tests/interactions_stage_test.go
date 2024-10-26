@@ -5,18 +5,21 @@ import (
 	"time"
 
 	"github.com/bwmarrin/discordgo"
+	"github.com/elliotwms/fakediscord/internal/snowflake"
 	"github.com/elliotwms/fakediscord/pkg/fakediscord"
 	"github.com/stretchr/testify/require"
 )
 
 type InteractionsStage struct {
-	t             *testing.T
-	require       *require.Assertions
-	session       *discordgo.Session
-	guild         *discordgo.Guild
-	channel       *discordgo.Channel
-	interaction   *discordgo.InteractionCreate
-	handlerCalled int
+	t                 *testing.T
+	require           *require.Assertions
+	session           *discordgo.Session
+	guild             *discordgo.Guild
+	channel           *discordgo.Channel
+	interactionCreate *discordgo.InteractionCreate
+	interaction       *discordgo.InteractionCreate
+	handlerCalled     int
+	err               error
 }
 
 func NewInteractionStage(t *testing.T) (given, when, then *InteractionsStage) {
@@ -52,15 +55,12 @@ func (s *InteractionsStage) a_registered_message_command_handler() *Interactions
 	return s
 }
 
-func (s *InteractionsStage) an_interaction_is_triggered() *InteractionsStage {
-	var err error
-	s.interaction, err = fakediscord.NewClient(botToken).Interaction(&discordgo.InteractionCreate{
-		Interaction: &discordgo.Interaction{
-			Type: discordgo.InteractionApplicationCommand,
-			Data: discordgo.ApplicationCommandInteractionData{},
-		},
-	})
-	s.require.NoError(err)
+func (s *InteractionsStage) the_interaction_is_triggered() *InteractionsStage {
+	if s.interactionCreate == nil {
+		s.a_valid_interaction()
+	}
+
+	s.interaction, s.err = fakediscord.NewClient(botToken).Interaction(s.interactionCreate)
 
 	return s
 }
@@ -116,4 +116,68 @@ func (s *InteractionsStage) the_interaction_message_is_updated() {
 	})
 
 	s.require.NoError(err)
+}
+
+func (s *InteractionsStage) an_interaction() *InteractionsStage {
+	s.interactionCreate = &discordgo.InteractionCreate{
+		Interaction: &discordgo.Interaction{},
+	}
+
+	return s
+}
+
+func (s *InteractionsStage) a_valid_interaction() {
+	s.interactionCreate = &discordgo.InteractionCreate{
+		Interaction: &discordgo.Interaction{
+			Type: discordgo.InteractionApplicationCommand,
+			Data: discordgo.ApplicationCommandInteractionData{
+				ID:          snowflake.Generate().String(),
+				Name:        "interaction",
+				CommandType: discordgo.ChatApplicationCommand,
+			},
+			GuildID:   s.guild.ID,
+			ChannelID: s.channel.ID,
+		},
+	}
+}
+
+func (s *InteractionsStage) no_error_should_be_returned() *InteractionsStage {
+	s.require.NoError(s.err)
+
+	return s
+}
+
+func (s *InteractionsStage) an_error_should_be_returned() *InteractionsStage {
+	s.require.Error(s.err)
+
+	return s
+}
+
+func (s *InteractionsStage) the_interaction_has_guild_id() *InteractionsStage {
+	s.interactionCreate.GuildID = s.guild.ID
+
+	return s
+}
+
+func (s *InteractionsStage) the_interaction_has_type() *InteractionsStage {
+	s.interactionCreate.Type = discordgo.InteractionApplicationCommand
+	return s
+}
+
+func (s *InteractionsStage) the_interaction_has_channel_id() *InteractionsStage {
+	s.interactionCreate.ChannelID = s.channel.ID
+
+	return s
+}
+
+func (s *InteractionsStage) the_interaction_has_data() *InteractionsStage {
+	s.interactionCreate.Data = discordgo.ApplicationCommandInteractionData{}
+
+	return s
+}
+
+func (s *InteractionsStage) the_error_should_contain(contains string) *InteractionsStage {
+	s.require.ErrorContains(s.err, contains)
+
+	return s
 }

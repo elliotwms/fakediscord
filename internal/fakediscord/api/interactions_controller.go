@@ -2,6 +2,7 @@ package api
 
 import (
 	"encoding/base64"
+	"errors"
 	"fmt"
 	"log/slog"
 	"net/http"
@@ -23,32 +24,25 @@ func interactionsController(r *gin.RouterGroup) {
 }
 
 func createInteraction(c *gin.Context) {
-	// create interaction ID
-	interaction := &discordgo.InteractionCreate{}
-
-	if err := c.BindJSON(interaction); err != nil {
-		_ = c.AbortWithError(http.StatusBadRequest, err)
-		return
-	}
-
 	u, done := getUser(c)
 	if done {
 		return
 	}
 
-	id := snowflake.Generate().String()
+	interaction := &discordgo.Interaction{}
+	if err := c.BindJSON(interaction); err != nil {
+		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
 
-	// token appears to be just random bytes
-	token := base64.StdEncoding.EncodeToString([]byte(
-		fmt.Sprintf("interaction:%s:%s", id, snowflake.Generate().String()),
-	))
+	setInteractionDefaults(interaction, u)
 
-	// generate ID and token
-	interaction.ID = id
-	interaction.Token = token
-	interaction.AppID = u.ID
+	if err := validateInteraction(interaction); err != nil {
+		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
 
-	storage.Interactions.Store(interaction.Token, *interaction.Interaction)
+	storage.Interactions.Store(interaction.Token, *interaction)
 
 	// todo send to webhook (query param?)
 
@@ -60,6 +54,95 @@ func createInteraction(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusCreated, interaction)
+}
+
+// setInteractionDefaults sets some default values when creating a new interaction
+func setInteractionDefaults(interaction *discordgo.Interaction, u discordgo.User) {
+	if interaction.ID == "" {
+		interaction.ID = snowflake.Generate().String()
+	}
+
+	if interaction.Token == "" {
+		// token appears to be just random bytes
+		interaction.Token = base64.StdEncoding.EncodeToString([]byte(
+			fmt.Sprintf("interaction:%s:%s", interaction.ID, snowflake.Generate().String()),
+		))
+	}
+
+	if interaction.AppID == "" {
+		interaction.AppID = u.ID
+	}
+}
+
+func validateInteraction(interaction *discordgo.Interaction) error {
+	var errs []error
+
+	if interaction.ID == "" {
+		errs = append(errs, errors.New("missing id"))
+	}
+
+	if interaction.AppID == "" {
+		errs = append(errs, errors.New("missing app_id"))
+	}
+
+	if interaction.Type == 0 {
+		errs = append(errs, errors.New("missing type"))
+	} else {
+		switch interaction.Type {
+		case discordgo.InteractionApplicationCommand, discordgo.InteractionApplicationCommandAutocomplete:
+			errs = validateApplicationCommandData(interaction, errs)
+		case discordgo.InteractionMessageComponent:
+			errs = validateMessageComponentData(interaction, errs)
+		case discordgo.InteractionModalSubmit:
+			errs = validateModalSubmitData(interaction, errs)
+		}
+	}
+
+	if interaction.GuildID == "" {
+		errs = append(errs, errors.New("missing guild_id"))
+	}
+
+	if interaction.ChannelID == "" {
+		errs = append(errs, errors.New("missing channel_id"))
+	}
+
+	return errors.Join(errs...)
+}
+
+func validateModalSubmitData(interaction *discordgo.Interaction, errs []error) []error {
+	data := interaction.ModalSubmitData()
+	if data.CustomID == "" {
+		errs = append(errs, errors.New("missing data.custom_id"))
+	}
+	return errs
+}
+
+func validateMessageComponentData(interaction *discordgo.Interaction, errs []error) []error {
+	data := interaction.MessageComponentData()
+	if data.CustomID == "" {
+		errs = append(errs, errors.New("missing data.custom_id"))
+	}
+
+	if data.ComponentType == 0 {
+		errs = append(errs, errors.New("missing data.component_type"))
+	}
+	return errs
+}
+
+func validateApplicationCommandData(interaction *discordgo.Interaction, errs []error) []error {
+	data := interaction.ApplicationCommandData()
+	if data.ID == "" {
+		errs = append(errs, errors.New("missing data.id"))
+	}
+
+	if data.Name == "" {
+		errs = append(errs, errors.New("missing data.name"))
+	}
+
+	if data.CommandType == 0 {
+		errs = append(errs, errors.New("missing data.command_type"))
+	}
+	return errs
 }
 
 func postCallback(c *gin.Context) {
