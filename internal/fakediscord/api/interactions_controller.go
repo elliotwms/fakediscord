@@ -2,7 +2,6 @@ package api
 
 import (
 	"encoding/base64"
-	"errors"
 	"fmt"
 	"log/slog"
 	"net/http"
@@ -32,9 +31,8 @@ func createInteraction(c *gin.Context) {
 		return
 	}
 
-	u, ok := storage.Users.Load(c.GetString(contextKeyUserID))
-	if !ok {
-		_ = c.AbortWithError(http.StatusInternalServerError, errors.New("user not found"))
+	u, done := getUser(c)
+	if done {
 		return
 	}
 
@@ -48,7 +46,7 @@ func createInteraction(c *gin.Context) {
 	// generate ID and token
 	interaction.ID = id
 	interaction.Token = token
-	interaction.AppID = u.(discordgo.User).ID
+	interaction.AppID = u.ID
 
 	storage.Interactions.Store(interaction.Token, *interaction.Interaction)
 

@@ -25,13 +25,10 @@ func applicationsController(r *gin.RouterGroup) {
 func postGuildCommand(c *gin.Context) {
 	guildID := c.Param("guild")
 
-	v, ok := storage.Users.Load(c.GetString(contextKeyUserID))
-	if !ok {
-		_ = c.AbortWithError(http.StatusInternalServerError, errors.New("user not found"))
+	u, done := getUser(c)
+	if done {
 		return
 	}
-
-	u := v.(discordgo.User)
 
 	command := &discordgo.ApplicationCommand{
 		ID:            snowflake.Generate().String(),

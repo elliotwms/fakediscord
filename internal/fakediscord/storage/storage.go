@@ -1,12 +1,17 @@
 package storage
 
-import "sync"
+import (
+	"sync"
+
+	"github.com/bwmarrin/discordgo"
+)
+
+var State = discordgo.NewState()
 
 var (
 	Channels             sync.Map // Channel ID : discordgo.Channel
 	Commands             sync.Map // Command ID : discordgo.ApplicationCommand
 	CommandNames         sync.Map // type:name : Command ID
-	Guilds               sync.Map // Guild ID : discordgo.Guild
 	Interactions         sync.Map // token : discordgo.Interaction
 	InteractionResponses sync.Map // token : Message ID
 	InteractionCallbacks sync.Map // Interaction ID : {}

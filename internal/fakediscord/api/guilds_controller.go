@@ -1,6 +1,7 @@
 package api
 
 import (
+	"errors"
 	"net/http"
 
 	"github.com/bwmarrin/discordgo"
@@ -14,12 +15,14 @@ import (
 func guildsController(r *gin.RouterGroup) {
 	r.Use(auth)
 	r.POST("", postGuild)
+	r.GET("/:guild", getGuild)
 	r.DELETE("/:guild", deleteGuild)
 
 	r.GET("/:guild/channels", getGuildChannels)
 	r.POST("/:guild/channels", postGuildChannels)
 }
 
+// https://discord.com/developers/docs/resources/guild#create-guild
 func postGuild(c *gin.Context) {
 	data := struct {
 		Name string `json:"name"`
@@ -44,6 +47,21 @@ func postGuild(c *gin.Context) {
 	})
 
 	c.JSON(http.StatusCreated, guild)
+}
+
+func getGuild(c *gin.Context) {
+	g, err := storage.State.Guild(c.Param("guild"))
+	if err != nil {
+		if errors.Is(err, discordgo.ErrStateNotFound) {
+			c.Status(http.StatusNotFound)
+			return
+		}
+
+		_ = c.AbortWithError(http.StatusInternalServerError, err)
+		return
+	}
+
+	c.JSON(http.StatusOK, g)
 }
 
 // https://discord.com/developers/docs/resources/guild#delete-guild

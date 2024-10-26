@@ -1,12 +1,26 @@
 package api
 
 import (
+	"errors"
 	"fmt"
+	"net/http"
 
 	"github.com/bwmarrin/discordgo"
 	"github.com/elliotwms/fakediscord/internal/fakediscord/storage"
 	"github.com/elliotwms/fakediscord/internal/fakediscord/ws"
+	"github.com/gin-gonic/gin"
 )
+
+func getUser(c *gin.Context) (discordgo.User, bool) {
+	u, ok := storage.Users.Load(c.GetString(contextKeyUserID))
+	if !ok {
+		_ = c.AbortWithError(http.StatusInternalServerError, errors.New("user missing from state"))
+		return discordgo.User{}, true
+	}
+
+	user := u.(discordgo.User)
+	return user, false
+}
 
 // sendMessage stores the message in fakediscord's internal state and dispatches a create/update event (depending on
 // if the message is new).

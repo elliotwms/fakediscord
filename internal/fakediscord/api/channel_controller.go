@@ -31,22 +31,11 @@ func channelController(r *gin.RouterGroup) {
 	r.PUT("/:channel/pins/:message", putChannelPin)
 
 	r.POST("/:channel/messages", createChannelMessage)
-	r.DELETE("/:channel/messages/:message", deleteChannelMessage)
 	r.GET("/:channel/messages/:message", getChannelMessage)
-	r.DELETE("/:channel/messages/:message/reactions", deleteMessageReactions)
+	r.DELETE("/:channel/messages/:message", deleteChannelMessage)
 	r.GET("/:channel/messages/:message/reactions/:reaction", getMessageReaction)
 	r.PUT("/:channel/messages/:message/reactions/:reaction/:user", putMessageReaction)
-}
-
-func getUser(c *gin.Context) (discordgo.User, bool) {
-	u, ok := storage.Users.Load(c.GetString(contextKeyUserID))
-	if !ok {
-		_ = c.AbortWithError(http.StatusInternalServerError, errors.New("user missing from state"))
-		return discordgo.User{}, true
-	}
-
-	user := u.(discordgo.User)
-	return user, false
+	r.DELETE("/:channel/messages/:message/reactions", deleteMessageReactions)
 }
 
 // https://discord.com/developers/docs/resources/channel#get-channel
@@ -76,6 +65,7 @@ func deleteChannel(c *gin.Context) {
 	c.JSON(http.StatusOK, channel)
 }
 
+// https://discord.com/developers/docs/resources/channel#get-pinned-messages
 func getChannelPins(c *gin.Context) {
 	var messages []discordgo.Message
 
@@ -90,6 +80,7 @@ func getChannelPins(c *gin.Context) {
 	c.JSON(http.StatusOK, messages)
 }
 
+// https://discord.com/developers/docs/resources/channel#pin-message
 func putChannelPin(c *gin.Context) {
 	channel, ok := storage.Channels.Load(c.Param("channel"))
 	if !ok {
@@ -304,9 +295,22 @@ func putMessageReaction(c *gin.Context) {
 	}
 	channel := v.(discordgo.Channel)
 
-	user, done := getUser(c)
-	if done {
-		return
+	var user *discordgo.User
+	id := c.Param("user")
+	if id == "@me" {
+		v, done := getUser(c)
+		if done {
+			return
+		}
+		user = &v
+	} else {
+		v, ok := storage.Users.Load(id)
+		if !ok {
+			c.AbortWithStatus(http.StatusNotFound)
+			return
+		}
+		u := v.(discordgo.User)
+		user = &u
 	}
 
 	e := &discordgo.MessageReactionAdd{
@@ -320,7 +324,7 @@ func putMessageReaction(c *gin.Context) {
 			GuildID:   channel.GuildID,
 		},
 		Member: &discordgo.Member{
-			User: &user,
+			User: user,
 		},
 	}
 
