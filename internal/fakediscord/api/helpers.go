@@ -39,3 +39,12 @@ func sendMessage(m *discordgo.Message) (*discordgo.MessageCreate, error) {
 	}
 	return messageCreate, nil
 }
+
+func handleStateErr(c *gin.Context, err error) {
+	if errors.Is(err, discordgo.ErrStateNotFound) {
+		c.AbortWithStatus(http.StatusNotFound)
+		return
+	}
+
+	_ = c.AbortWithError(http.StatusInternalServerError, err)
+}

@@ -9,7 +9,6 @@ import (
 var State = discordgo.NewState()
 
 var (
-	Channels             sync.Map // Channel ID : discordgo.Channel
 	Commands             sync.Map // Command ID : discordgo.ApplicationCommand
 	CommandNames         sync.Map // type:name : Command ID
 	Interactions         sync.Map // token : discordgo.Interaction

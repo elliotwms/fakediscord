@@ -49,6 +49,7 @@ func postGuild(c *gin.Context) {
 	c.JSON(http.StatusCreated, guild)
 }
 
+// https://discord.com/developers/docs/resources/guild#get-guild
 func getGuild(c *gin.Context) {
 	g, err := storage.State.Guild(c.Param("guild"))
 	if err != nil {
@@ -83,18 +84,13 @@ func deleteGuild(c *gin.Context) {
 
 // https://discord.com/developers/docs/resources/guild#get-guild-channels
 func getGuildChannels(c *gin.Context) {
-	channels := []discordgo.Channel{}
+	guild, err := storage.State.Guild(c.Param("guild"))
+	if err != nil {
+		handleStateErr(c, err)
+		return
+	}
 
-	storage.Channels.Range(func(k, v interface{}) bool {
-		channel := v.(discordgo.Channel)
-		if channel.GuildID == c.Param("guild") {
-			channels = append(channels, channel)
-		}
-
-		return true
-	})
-
-	c.JSON(http.StatusOK, channels)
+	c.JSON(http.StatusOK, guild.Channels)
 }
 
 // https://discord.com/developers/docs/resources/guild#create-guild-channel
@@ -109,7 +105,11 @@ func postGuildChannels(c *gin.Context) {
 	channel.ID = snowflake.Generate().String()
 	channel.GuildID = c.Param("guild")
 
-	storage.Channels.Store(channel.ID, channel)
+	err = storage.State.ChannelAdd(&channel)
+	if err != nil {
+		_ = c.AbortWithError(http.StatusInternalServerError, err)
+		return
+	}
 
 	err = ws.DispatchEvent("CHANNEL_CREATE", discordgo.ChannelCreate{
 		Channel: &channel,

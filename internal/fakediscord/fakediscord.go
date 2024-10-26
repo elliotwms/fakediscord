@@ -57,11 +57,6 @@ func generate(c config.Config) {
 		if err != nil {
 			panic(err)
 		}
-
-		for _, channel := range g.Channels {
-			slog.Info("Creating test channel", "name", channel.Name, "id", channel.ID)
-			storage.Channels.Store(channel.ID, *channel)
-		}
 	}
 }
 

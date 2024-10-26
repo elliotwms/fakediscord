@@ -41,9 +41,9 @@ func channelController(r *gin.RouterGroup) {
 
 // https://discord.com/developers/docs/resources/channel#get-channel
 func getChannel(c *gin.Context) {
-	channel, ok := storage.Channels.Load(c.Param("channel"))
-	if !ok {
-		c.AbortWithStatus(http.StatusNotFound)
+	channel, err := storage.State.Channel(c.Param("channel"))
+	if err != nil {
+		handleStateErr(c, err)
 		return
 	}
 
@@ -52,13 +52,18 @@ func getChannel(c *gin.Context) {
 
 // https://discord.com/developers/docs/resources/channel#deleteclose-channel
 func deleteChannel(c *gin.Context) {
-	channel, ok := storage.Channels.LoadAndDelete(c.Param("channel"))
-	if !ok {
-		c.AbortWithStatus(http.StatusNotFound)
+	channel, err := storage.State.Channel(c.Param("channel"))
+	if err != nil {
+		handleStateErr(c, err)
 		return
 	}
 
-	if err := ws.DispatchEvent("CHANNEL_DELETE", channel); err != nil {
+	if err = storage.State.ChannelRemove(channel); err != nil {
+		handleStateErr(c, err)
+		return
+	}
+
+	if err = ws.DispatchEvent("CHANNEL_DELETE", channel); err != nil {
 		_ = c.AbortWithError(http.StatusInternalServerError, err)
 		return
 	}
@@ -83,18 +88,18 @@ func getChannelPins(c *gin.Context) {
 
 // https://discord.com/developers/docs/resources/channel#pin-message
 func putChannelPin(c *gin.Context) {
-	channel, ok := storage.Channels.Load(c.Param("channel"))
-	if !ok {
-		c.AbortWithStatus(http.StatusNotFound)
+	channel, err := storage.State.Channel(c.Param("channel"))
+	if err != nil {
+		handleStateErr(c, err)
 		return
 	}
 
 	storage.Pins.Store(c.Param("channel"), c.Param("message"))
 
-	err := ws.DispatchEvent("CHANNEL_PINS_UPDATE", discordgo.ChannelPinsUpdate{
+	err = ws.DispatchEvent("CHANNEL_PINS_UPDATE", discordgo.ChannelPinsUpdate{
 		LastPinTimestamp: time.Now().String(),
 		ChannelID:        c.Param("channel"),
-		GuildID:          channel.(discordgo.Channel).GuildID,
+		GuildID:          channel.GuildID,
 	})
 
 	if err != nil {
@@ -127,12 +132,11 @@ func createChannelMessage(c *gin.Context) {
 		return
 	}
 
-	v, ok := storage.Channels.Load(c.Param("channel"))
-	if !ok {
+	channel, err := storage.State.Channel(c.Param("channel"))
+	if err != nil {
 		_ = c.AbortWithError(http.StatusNotFound, errors.New("channel not found"))
 		return
 	}
-	channel := v.(discordgo.Channel)
 
 	m := builders.NewMessage(&user, channel.ID, channel.GuildID).
 		WithContent(messageSend.Content).
@@ -291,12 +295,11 @@ func getMessageReaction(c *gin.Context) {
 
 // https://discord.com/developers/docs/resources/message#create-reaction
 func putMessageReaction(c *gin.Context) {
-	v, ok := storage.Channels.Load(c.Param("channel"))
-	if !ok {
-		c.AbortWithStatus(http.StatusNotFound)
+	channel, err := storage.State.Channel(c.Param("channel"))
+	if err != nil {
+		handleStateErr(c, err)
 		return
 	}
-	channel := v.(discordgo.Channel)
 
 	var user *discordgo.User
 	id := c.Param("user")
@@ -333,7 +336,7 @@ func putMessageReaction(c *gin.Context) {
 
 	storage.Reactions.Store(c.Param("message"), c.Param("reaction"), user.ID)
 
-	err := ws.DispatchEvent("MESSAGE_REACTION_ADD", e)
+	err = ws.DispatchEvent("MESSAGE_REACTION_ADD", e)
 	if err != nil {
 		_ = c.AbortWithError(http.StatusInternalServerError, err)
 		return
