@@ -33,6 +33,7 @@ func channelController(r *gin.RouterGroup) {
 	r.POST("/:channel/messages", createChannelMessage)
 	r.GET("/:channel/messages/:message", getChannelMessage)
 	r.DELETE("/:channel/messages/:message", deleteChannelMessage)
+
 	r.GET("/:channel/messages/:message/reactions/:reaction", getMessageReaction)
 	r.PUT("/:channel/messages/:message/reactions/:reaction/:user", putMessageReaction)
 	r.DELETE("/:channel/messages/:message/reactions", deleteMessageReactions)
@@ -276,6 +277,7 @@ func deleteChannelMessage(c *gin.Context) {
 	c.Status(http.StatusOK)
 }
 
+// https://discord.com/developers/docs/resources/message#get-reactions
 func getMessageReaction(c *gin.Context) {
 	vs, _ := storage.Reactions.LoadMessageReaction(c.Param("message"), c.Param("reaction"))
 
@@ -287,6 +289,7 @@ func getMessageReaction(c *gin.Context) {
 	c.JSON(http.StatusOK, users)
 }
 
+// https://discord.com/developers/docs/resources/message#create-reaction
 func putMessageReaction(c *gin.Context) {
 	v, ok := storage.Channels.Load(c.Param("channel"))
 	if !ok {
@@ -339,6 +342,7 @@ func putMessageReaction(c *gin.Context) {
 	c.Status(http.StatusNoContent)
 }
 
+// https://discord.com/developers/docs/resources/message#delete-all-reactions
 func deleteMessageReactions(c *gin.Context) {
 	v, ok := storage.Messages.Load(c.Param("message"))
 	if !ok {
