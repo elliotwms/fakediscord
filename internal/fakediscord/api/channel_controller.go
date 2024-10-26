@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/bwmarrin/discordgo"
+	"github.com/elliotwms/fakediscord/internal/fakediscord/builders"
 	"github.com/elliotwms/fakediscord/internal/fakediscord/storage"
 	"github.com/elliotwms/fakediscord/internal/fakediscord/ws"
 	"github.com/elliotwms/fakediscord/internal/snowflake"
@@ -134,27 +135,26 @@ func createChannelMessage(c *gin.Context) {
 		return
 	}
 
-	m := discordgo.Message{
-		ID:          snowflake.Generate().String(),
-		ChannelID:   c.Param("channel"),
-		Content:     messageSend.Content,
-		Timestamp:   time.Now(),
-		Author:      &user,
-		Embeds:      messageSend.Embeds,
-		Attachments: buildAttachments(c.Param("channel"), messageSend.Files),
+	v, ok := storage.Channels.Load(c.Param("channel"))
+	if !ok {
+		_ = c.AbortWithError(http.StatusNotFound, errors.New("channel not found"))
+		return
 	}
+	channel := v.(discordgo.Channel)
 
-	storage.Messages.Store(m.ID, m)
+	m := builders.NewMessage(&user, channel.ID, channel.GuildID).
+		WithContent(messageSend.Content).
+		WithEmbeds(messageSend.Embeds).
+		WithAttachments(buildAttachments(channel.ID, messageSend.Files)).
+		Build()
 
-	messageCreate := discordgo.MessageCreate{Message: &m}
-	if err := ws.DispatchEvent("MESSAGE_CREATE", messageCreate); err != nil {
-		c.AbortWithStatus(500)
+	messageCreate, err := sendMessage(m)
+	if err != nil {
+		_ = c.AbortWithError(http.StatusInternalServerError, err)
 		return
 	}
 
-	c.JSON(http.StatusOK, discordgo.MessageCreate{
-		Message: &m,
-	})
+	c.JSON(http.StatusOK, messageCreate)
 }
 
 func parseMessageSend(c *gin.Context) (*discordgo.MessageSend, error) {
