@@ -124,6 +124,4 @@ func updateMessage(m *discordgo.Message, edit *discordgo.WebhookEdit) {
 	}
 
 	// todo allowed mentions?
-
-	return
 }
