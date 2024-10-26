@@ -65,6 +65,22 @@ func newSession(token string) *discordgo.Session {
 	return session
 }
 
+func newOpenSession(t *testing.T, token string) (session *discordgo.Session, closer func()) {
+	session = newSession(token)
+
+	err := session.Open()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	return session, func() {
+		err = session.Close()
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
+}
+
 func setupGuild(s *discordgo.Session, name string) (*discordgo.Guild, *discordgo.Channel, error) {
 	guild, err := s.GuildCreate(fmt.Sprintf("%s_test", name))
 	if err != nil {

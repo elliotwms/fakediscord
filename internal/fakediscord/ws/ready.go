@@ -24,15 +24,16 @@ func buildReady(u *discordgo.User) discordgo.Ready {
 		User: u,
 	}
 
-	storage.Guilds.Range(func(key, value any) bool {
+	storage.State.RLock()
+	defer storage.State.RUnlock()
+
+	for _, guild := range storage.State.Guilds {
 		r.Guilds = append(r.Guilds, &discordgo.Guild{
 			// READY returns a stripped down guild containing just the ID and availability
-			ID:          key.(string),
+			ID:          guild.ID,
 			Unavailable: true,
 		})
-
-		return true
-	})
+	}
 
 	return r
 }

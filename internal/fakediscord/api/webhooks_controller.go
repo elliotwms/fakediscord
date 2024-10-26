@@ -30,14 +30,20 @@ func webhooksController(r *gin.RouterGroup) {
 func getResponse(c *gin.Context) {
 	mID, ok := storage.InteractionResponses.Load(c.Param("token"))
 	if !ok {
-		_ = c.AbortWithError(http.StatusNotFound, errors.New("token not found"))
+		_ = c.AbortWithError(http.StatusNotFound, errors.New("interaction not found"))
 		return
 	}
 
-	slog.Info("loading message", "id", mID)
-	m, ok := storage.Messages.Load(mID)
+	v, ok := storage.Interactions.Load(c.Param("token"))
 	if !ok {
-		_ = c.AbortWithError(http.StatusNotFound, errors.New("message not found"))
+		_ = c.AbortWithError(http.StatusNotFound, errors.New("interaction not found"))
+	}
+	i := v.(discordgo.Interaction)
+
+	slog.Info("loading message", "id", mID)
+	m, err := storage.State.Message(i.ChannelID, mID.(string))
+	if err != nil {
+		handleStateErr(c, err)
 		return
 	}
 
@@ -60,7 +66,8 @@ func patchResponse(c *gin.Context) {
 	}
 	interaction := v.(discordgo.Interaction)
 
-	id, _ := storage.InteractionResponses.LoadOrStore(token, snowflake.Generate().String())
+	v, _ = storage.InteractionResponses.LoadOrStore(token, snowflake.Generate().String())
+	id := v.(string)
 
 	v, ok = storage.Users.Load(interaction.AppID)
 	if !ok {
@@ -69,21 +76,25 @@ func patchResponse(c *gin.Context) {
 	}
 	user := v.(discordgo.User)
 
-	v, ok = storage.Messages.LoadOrStore(
-		id,
-		*builders.NewMessage(&user, interaction.ChannelID, interaction.GuildID).
-			WithID(id.(string)).
-			WithType(discordgo.MessageTypeReply).
-			Build(),
-	)
-	if !ok {
+	m, err := storage.State.Message(interaction.ChannelID, id)
+	if err != nil {
+		if !errors.Is(err, discordgo.ErrStateNotFound) {
+			_ = c.AbortWithError(http.StatusInternalServerError, err)
+			return
+		}
+
+		// build a new message
 		slog.Info("message not found, creating new message", "id", id, "token", token)
+
+		m = builders.NewMessage(&user, interaction.ChannelID, interaction.GuildID).
+			WithID(id).
+			WithType(discordgo.MessageTypeReply).
+			Build()
 	}
-	m := v.(discordgo.Message)
 
-	m = updateMessage(m, edit)
+	updateMessage(m, edit)
 
-	mc, err := sendMessage(&m)
+	mc, err := sendMessage(m)
 	if err != nil {
 		_ = c.AbortWithError(http.StatusInternalServerError, err)
 		return
@@ -92,7 +103,8 @@ func patchResponse(c *gin.Context) {
 	c.JSON(http.StatusOK, mc)
 }
 
-func updateMessage(m discordgo.Message, edit *discordgo.WebhookEdit) discordgo.Message {
+// updateMessage applies the discordgo.WebhookEdit to the message
+func updateMessage(m *discordgo.Message, edit *discordgo.WebhookEdit) {
 	if edit.Content != nil {
 		m.Content = *edit.Content
 	}
@@ -112,6 +124,4 @@ func updateMessage(m discordgo.Message, edit *discordgo.WebhookEdit) discordgo.M
 	}
 
 	// todo allowed mentions?
-
-	return m
 }

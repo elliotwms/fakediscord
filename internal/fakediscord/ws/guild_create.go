@@ -10,21 +10,22 @@ import (
 )
 
 func sendSignOnGuildCreateEvents(ws *websocket.Conn) {
-	storage.Guilds.Range(func(key, value any) bool {
-		guildCreate(ws, value.(discordgo.Guild))
-
-		return true
-	})
+	storage.State.RLock()
+	defer storage.State.RUnlock()
+	for _, guild := range storage.State.Guilds {
+		guild := guild
+		guildCreate(ws, guild)
+	}
 }
 
-func guildCreate(ws *websocket.Conn, g discordgo.Guild) {
+func guildCreate(ws *websocket.Conn, g *discordgo.Guild) {
 	slog.With("guild_id", g.ID).Info("Sending GUILD_CREATE")
 
 	err := ws.WriteJSON(Event{
 		Sequence: sequence.Next(),
 		Type:     "GUILD_CREATE",
 		Data: discordgo.GuildCreate{
-			Guild: &g,
+			Guild: g,
 		},
 	})
 

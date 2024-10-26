@@ -1,6 +1,7 @@
 package api
 
 import (
+	"errors"
 	"net/http"
 
 	"github.com/bwmarrin/discordgo"
@@ -14,12 +15,14 @@ import (
 func guildsController(r *gin.RouterGroup) {
 	r.Use(auth)
 	r.POST("", postGuild)
+	r.GET("/:guild", getGuild)
 	r.DELETE("/:guild", deleteGuild)
 
 	r.GET("/:guild/channels", getGuildChannels)
 	r.POST("/:guild/channels", postGuildChannels)
 }
 
+// https://discord.com/developers/docs/resources/guild#create-guild
 func postGuild(c *gin.Context) {
 	data := struct {
 		Name string `json:"name"`
@@ -33,7 +36,11 @@ func postGuild(c *gin.Context) {
 
 	guild := builders.NewGuild(data.Name).Build()
 
-	storage.Guilds.Store(guild.ID, *guild)
+	err = storage.State.GuildAdd(guild)
+	if err != nil {
+		_ = c.AbortWithError(http.StatusInternalServerError, err)
+		return
+	}
 
 	_ = ws.DispatchEvent("GUILD_CREATE", discordgo.GuildCreate{
 		Guild: guild,
@@ -42,22 +49,32 @@ func postGuild(c *gin.Context) {
 	c.JSON(http.StatusCreated, guild)
 }
 
-// https://discord.com/developers/docs/resources/guild#delete-guild
-func deleteGuild(c *gin.Context) {
-	v, ok := storage.Guilds.LoadAndDelete(c.Param("guild"))
-	if !ok {
-		c.Status(http.StatusNotFound)
-		return
-	}
+// https://discord.com/developers/docs/resources/guild#get-guild
+func getGuild(c *gin.Context) {
+	g, err := storage.State.Guild(c.Param("guild"))
+	if err != nil {
+		if errors.Is(err, discordgo.ErrStateNotFound) {
+			c.Status(http.StatusNotFound)
+			return
+		}
 
-	guild := v.(discordgo.Guild)
-
-	if err := ws.DispatchEvent("GUILD_UPDATE", guild); err != nil {
 		_ = c.AbortWithError(http.StatusInternalServerError, err)
 		return
 	}
 
-	if err := ws.DispatchEvent("GUILD_DELETE", discordgo.Guild{ID: guild.ID}); err != nil {
+	c.JSON(http.StatusOK, g)
+}
+
+// https://discord.com/developers/docs/resources/guild#delete-guild
+func deleteGuild(c *gin.Context) {
+	guild := &discordgo.Guild{ID: c.Param("guild")}
+	err := storage.State.GuildRemove(guild)
+	if err != nil {
+		c.Status(http.StatusNotFound)
+		return
+	}
+
+	if err := ws.DispatchEvent("GUILD_DELETE", guild); err != nil {
 		_ = c.AbortWithError(http.StatusInternalServerError, err)
 		return
 	}
@@ -67,18 +84,13 @@ func deleteGuild(c *gin.Context) {
 
 // https://discord.com/developers/docs/resources/guild#get-guild-channels
 func getGuildChannels(c *gin.Context) {
-	channels := []discordgo.Channel{}
+	guild, err := storage.State.Guild(c.Param("guild"))
+	if err != nil {
+		handleStateErr(c, err)
+		return
+	}
 
-	storage.Channels.Range(func(k, v interface{}) bool {
-		channel := v.(discordgo.Channel)
-		if channel.GuildID == c.Param("guild") {
-			channels = append(channels, channel)
-		}
-
-		return true
-	})
-
-	c.JSON(http.StatusOK, channels)
+	c.JSON(http.StatusOK, guild.Channels)
 }
 
 // https://discord.com/developers/docs/resources/guild#create-guild-channel
@@ -93,7 +105,11 @@ func postGuildChannels(c *gin.Context) {
 	channel.ID = snowflake.Generate().String()
 	channel.GuildID = c.Param("guild")
 
-	storage.Channels.Store(channel.ID, channel)
+	err = storage.State.ChannelAdd(&channel)
+	if err != nil {
+		_ = c.AbortWithError(http.StatusInternalServerError, err)
+		return
+	}
 
 	err = ws.DispatchEvent("CHANNEL_CREATE", discordgo.ChannelCreate{
 		Channel: &channel,
