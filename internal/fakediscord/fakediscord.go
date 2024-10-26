@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"os"
 
+	"github.com/bwmarrin/discordgo"
 	"github.com/elliotwms/fakediscord/internal/fakediscord/api"
 	"github.com/elliotwms/fakediscord/internal/fakediscord/builders"
 	"github.com/elliotwms/fakediscord/internal/fakediscord/storage"
@@ -35,19 +36,28 @@ func Run(ctx context.Context, c config.Config) error {
 // generate generates resources based on the config provided, such as setting up users and guilds from a provided
 // YAML file
 func generate(c config.Config) {
+	users := []*discordgo.User{}
 	for _, user := range c.Users {
 		u := builders.NewUserFromConfig(user).Build()
 		slog.Info("Creating test user", "username", u.Username, "id", u.ID, "bot", u.Bot)
 
 		storage.Users.Store(u.ID, *u)
+		users = append(users, u)
 	}
 
 	for _, guild := range c.Guilds {
-		g := builders.NewGuildFromConfig(guild).Build()
+		g := builders.
+			NewGuildFromConfig(guild).
+			WithUsers(users).
+			Build()
 
 		slog.Info("Creating test guild", "name", g.Name, "id", g.ID)
 
-		storage.Guilds.Store(g.ID, *g)
+		err := storage.State.GuildAdd(g)
+		if err != nil {
+			panic(err)
+		}
+
 		for _, channel := range g.Channels {
 			slog.Info("Creating test channel", "name", channel.Name, "id", channel.ID)
 			storage.Channels.Store(channel.ID, *channel)

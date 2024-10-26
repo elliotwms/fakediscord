@@ -1,6 +1,8 @@
 package builders
 
 import (
+	"time"
+
 	"github.com/bwmarrin/discordgo"
 	"github.com/elliotwms/fakediscord/internal/snowflake"
 	"github.com/elliotwms/fakediscord/pkg/config"
@@ -47,4 +49,29 @@ func (g *Guild) WithChannel(channel *discordgo.Channel) *Guild {
 	g.g.Channels = append(g.g.Channels, channel)
 
 	return g
+}
+
+func (g *Guild) WithUsers(users []*discordgo.User) *Guild {
+	for _, user := range users {
+		g.g.Members = append(g.g.Members, NewMember(g.g.ID, user).Build())
+	}
+	return g
+}
+
+type Member struct {
+	m *discordgo.Member
+}
+
+func NewMember(guildID string, u *discordgo.User) *Member {
+	return &Member{
+		m: &discordgo.Member{
+			GuildID:  guildID,
+			JoinedAt: time.Now(),
+			User:     u,
+		},
+	}
+}
+
+func (m *Member) Build() *discordgo.Member {
+	return m.m
 }

@@ -33,7 +33,11 @@ func postGuild(c *gin.Context) {
 
 	guild := builders.NewGuild(data.Name).Build()
 
-	storage.Guilds.Store(guild.ID, *guild)
+	err = storage.State.GuildAdd(guild)
+	if err != nil {
+		_ = c.AbortWithError(http.StatusInternalServerError, err)
+		return
+	}
 
 	_ = ws.DispatchEvent("GUILD_CREATE", discordgo.GuildCreate{
 		Guild: guild,
@@ -44,20 +48,14 @@ func postGuild(c *gin.Context) {
 
 // https://discord.com/developers/docs/resources/guild#delete-guild
 func deleteGuild(c *gin.Context) {
-	v, ok := storage.Guilds.LoadAndDelete(c.Param("guild"))
-	if !ok {
+	guild := &discordgo.Guild{ID: c.Param("guild")}
+	err := storage.State.GuildRemove(guild)
+	if err != nil {
 		c.Status(http.StatusNotFound)
 		return
 	}
 
-	guild := v.(discordgo.Guild)
-
-	if err := ws.DispatchEvent("GUILD_UPDATE", guild); err != nil {
-		_ = c.AbortWithError(http.StatusInternalServerError, err)
-		return
-	}
-
-	if err := ws.DispatchEvent("GUILD_DELETE", discordgo.Guild{ID: guild.ID}); err != nil {
+	if err := ws.DispatchEvent("GUILD_DELETE", guild); err != nil {
 		_ = c.AbortWithError(http.StatusInternalServerError, err)
 		return
 	}
