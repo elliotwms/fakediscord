@@ -60,7 +60,8 @@ func main() {
 
 * Any token value will pass authentication (`Bot {token}`)
 * If the token matches one specified in the config then the relevant user will be authenticated
-* Otherwise, a user will be generated with the token value as the username 
+* Otherwise, a user will be generated with the token value as the username
+* For testing purposes, all users are assumed to be in all guilds
 
 ### Interactions
 
