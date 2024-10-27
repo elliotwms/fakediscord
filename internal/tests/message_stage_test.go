@@ -10,6 +10,7 @@ import (
 )
 
 type MessageStage struct {
+	t           *testing.T
 	require     *require.Assertions
 	session     *discordgo.Session
 	guild       *discordgo.Guild
@@ -24,6 +25,7 @@ func NewMessageStage(t *testing.T) (given, then, when *MessageStage) {
 	r := require.New(t)
 
 	s := &MessageStage{
+		t:       t,
 		require: r,
 		session: newSession(botToken),
 	}
@@ -37,7 +39,7 @@ func (s *MessageStage) setup() {
 	s.require.NoError(s.session.Open())
 
 	var err error
-	s.guild, s.channel, err = setupGuild(s.session, "message")
+	s.guild, s.channel, err = setupGuild(s.t, s.session, "message")
 	s.require.NoError(err)
 }
 

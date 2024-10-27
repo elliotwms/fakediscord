@@ -81,11 +81,14 @@ func newOpenSession(t *testing.T, token string) (session *discordgo.Session, clo
 	}
 }
 
-func setupGuild(s *discordgo.Session, name string) (*discordgo.Guild, *discordgo.Channel, error) {
+func setupGuild(t *testing.T, s *discordgo.Session, name string) (*discordgo.Guild, *discordgo.Channel, error) {
 	guild, err := s.GuildCreate(fmt.Sprintf("%s_test", name))
 	if err != nil {
 		return nil, nil, err
 	}
+	t.Cleanup(func() {
+		_ = s.GuildDelete(guild.ID)
+	})
 
 	channel, err := s.GuildChannelCreate(guild.ID, "test", discordgo.ChannelTypeGuildText)
 

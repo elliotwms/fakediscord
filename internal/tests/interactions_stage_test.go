@@ -37,7 +37,7 @@ func NewInteractionStage(t *testing.T) (given, when, then *InteractionsStage) {
 	})
 
 	var err error
-	s.guild, s.channel, err = setupGuild(s.session, "message")
+	s.guild, s.channel, err = setupGuild(t, s.session, "message")
 	s.require.NoError(err)
 
 	return s, s, s
