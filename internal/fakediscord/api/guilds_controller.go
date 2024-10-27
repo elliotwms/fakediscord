@@ -42,7 +42,7 @@ func postGuild(c *gin.Context) {
 		return
 	}
 
-	_ = ws.DispatchEvent("GUILD_CREATE", discordgo.GuildCreate{
+	_ = ws.Broadcast("GUILD_CREATE", discordgo.GuildCreate{
 		Guild: guild,
 	})
 
@@ -74,7 +74,7 @@ func deleteGuild(c *gin.Context) {
 		return
 	}
 
-	if err := ws.DispatchEvent("GUILD_DELETE", guild); err != nil {
+	if err := ws.Broadcast("GUILD_DELETE", guild); err != nil {
 		_ = c.AbortWithError(http.StatusInternalServerError, err)
 		return
 	}
@@ -111,7 +111,7 @@ func postGuildChannels(c *gin.Context) {
 		return
 	}
 
-	err = ws.DispatchEvent("CHANNEL_CREATE", discordgo.ChannelCreate{
+	err = ws.Broadcast("CHANNEL_CREATE", discordgo.ChannelCreate{
 		Channel: &channel,
 	})
 

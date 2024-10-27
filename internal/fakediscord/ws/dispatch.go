@@ -27,20 +27,21 @@ func deregister(id string) bool {
 	return ok
 }
 
-func DispatchEvent(t string, body interface{}) error {
+// Broadcast sends event with type t and payload body to all registered connections
+func Broadcast(t string, body interface{}) error {
 	bs, err := json.Marshal(body)
 	if err != nil {
 		return err
 	}
 
-	return Dispatch(discordgo.Event{
+	return broadcast(discordgo.Event{
 		Sequence: sequence.Next(),
 		Type:     t,
 		RawData:  bs,
 	})
 }
 
-func Dispatch(e discordgo.Event) error {
+func broadcast(e discordgo.Event) error {
 	slog.Info("Dispatching event", slog.String("type", e.Type))
 
 	var err error
