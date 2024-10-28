@@ -63,7 +63,7 @@ func deleteChannel(c *gin.Context) {
 		return
 	}
 
-	if err = ws.Broadcast("CHANNEL_DELETE", channel); err != nil {
+	if _, err = ws.Connections.Broadcast("CHANNEL_DELETE", channel); err != nil {
 		_ = c.AbortWithError(http.StatusInternalServerError, err)
 		return
 	}
@@ -98,7 +98,7 @@ func putChannelPin(c *gin.Context) {
 
 	storage.Pins.Store(c.Param("channel"), c.Param("message"))
 
-	err = ws.Broadcast("CHANNEL_PINS_UPDATE", discordgo.ChannelPinsUpdate{
+	_, err = ws.Connections.Broadcast("CHANNEL_PINS_UPDATE", discordgo.ChannelPinsUpdate{
 		LastPinTimestamp: time.Now().String(),
 		ChannelID:        c.Param("channel"),
 		GuildID:          channel.GuildID,
@@ -278,7 +278,7 @@ func deleteChannelMessage(c *gin.Context) {
 		return
 	}
 
-	err = ws.Broadcast("MESSAGE_DELETE", discordgo.MessageDelete{
+	_, err = ws.Connections.Broadcast("MESSAGE_DELETE", discordgo.MessageDelete{
 		Message: m,
 	})
 	if err != nil {
@@ -344,7 +344,7 @@ func putMessageReaction(c *gin.Context) {
 
 	storage.Reactions.Store(c.Param("message"), c.Param("reaction"), user.ID)
 
-	err = ws.Broadcast("MESSAGE_REACTION_ADD", e)
+	_, err = ws.Connections.Broadcast("MESSAGE_REACTION_ADD", e)
 	if err != nil {
 		_ = c.AbortWithError(http.StatusInternalServerError, err)
 		return
@@ -363,7 +363,7 @@ func deleteMessageReactions(c *gin.Context) {
 
 	storage.Reactions.DeleteMessageReactions(c.Param("message"))
 
-	err = ws.Broadcast("MESSAGE_REACTION_REMOVE_ALL", discordgo.MessageReactionRemoveAll{
+	_, err = ws.Connections.Broadcast("MESSAGE_REACTION_REMOVE_ALL", discordgo.MessageReactionRemoveAll{
 		MessageReaction: &discordgo.MessageReaction{
 			MessageID: m.ID,
 			ChannelID: m.ChannelID,

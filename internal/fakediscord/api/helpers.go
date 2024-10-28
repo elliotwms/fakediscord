@@ -18,7 +18,7 @@ func getUser(c *gin.Context) (user discordgo.User, done bool) {
 		return discordgo.User{}, true
 	}
 
-	user := u.(discordgo.User)
+	user = u.(discordgo.User)
 	return user, false
 }
 
@@ -41,7 +41,7 @@ func sendMessage(m *discordgo.Message) (*discordgo.MessageCreate, error) {
 	}
 
 	messageCreate := &discordgo.MessageCreate{Message: m}
-	if err := ws.Broadcast(t, messageCreate); err != nil {
+	if _, err := ws.Connections.Broadcast(t, messageCreate); err != nil {
 		return nil, fmt.Errorf("send message: %w", err)
 	}
 	return messageCreate, nil

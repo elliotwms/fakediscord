@@ -46,8 +46,8 @@ func createInteraction(c *gin.Context) {
 
 	// todo send to webhook (query param?)
 
-	// todo only send to bot -- not broadcast
-	err := ws.Broadcast("INTERACTION_CREATE", interaction)
+	// if webhook not registered, send interaction via connection
+	_, err := ws.Connections.Send(interaction.AppID, "INTERACTION_CREATE", interaction)
 	if err != nil {
 		_ = c.AbortWithError(http.StatusInternalServerError, err)
 		return
