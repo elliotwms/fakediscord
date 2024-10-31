@@ -147,3 +147,13 @@ sequenceDiagram
 
 * Create (see [docs](#interactions))
 * [Callback](https://discord.com/developers/docs/interactions/receiving-and-responding#interaction-callback)
+
+## Examples
+
+Check out how the following projects use `fakediscord` for inspiration:
+
+### [Pinbot](https://github.com/elliotwms/pinbot/tree/master/tests)
+
+* Docker [Compose](https://github.com/elliotwms/pinbot/blob/master/compose.yaml) contains Pinbot config, including the bot user in [fakediscord.yaml](https://github.com/elliotwms/pinbot/blob/master/fakediscord.yaml)
+* [TestMain](https://github.com/elliotwms/pinbot/blob/20debf13a3dff8e58b7d61ec5e04c18c1542be3d/tests/setup_test.go#L21) calls `fakediscord.Configure` to set base URLs etc, sets up the client, creates a test guild for the run and opens a general session for the test suite
+* Individual tests then create channels in the test guild to execute their tests within ([example](https://github.com/elliotwms/pinbot/blob/20debf13a3dff8e58b7d61ec5e04c18c1542be3d/tests/pin_test.go#L7))
