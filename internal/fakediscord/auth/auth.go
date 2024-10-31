@@ -26,6 +26,8 @@ func Authenticate(token string) *discordgo.User {
 
 	storage.Users.Store(u.ID, *u)
 
+	// todo add to State.Members?
+
 	return u
 }
 

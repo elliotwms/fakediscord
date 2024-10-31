@@ -56,6 +56,13 @@ func main() {
 }
 ```
 
+### Authentication
+
+* Any token value will pass authentication (`Bot {token}`)
+* If the token matches one specified in the config then the relevant user will be authenticated
+* Otherwise, a user will be generated with the token value as the username
+* For testing purposes, all users are assumed to be in all guilds
+
 ### Interactions
 
 `fakediscord` provides an endpoint for triggering interactions, which would normally only be possible via a user initiating via the UI. A `POST` of an `InteractionCreate` event to `/api/:version/interactions` will create an interaction.

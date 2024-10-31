@@ -30,7 +30,7 @@ func NewChannelStage(t *testing.T) (*ChannelStage, *ChannelStage, *ChannelStage)
 	t.Cleanup(func() { s.require.NoError(session.Close()) })
 
 	var err error
-	s.guild, _, err = setupGuild(session, "channel")
+	s.guild, _, err = setupGuild(t, session, "channel")
 	s.require.NoError(err)
 
 	return s, s, s
