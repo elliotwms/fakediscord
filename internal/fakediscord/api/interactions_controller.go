@@ -47,10 +47,14 @@ func createInteraction(c *gin.Context) {
 	// todo send to webhook (query param?)
 
 	// if webhook not registered, send interaction via connection
-	_, err := ws.Connections.Send(interaction.AppID, "INTERACTION_CREATE", interaction)
+	ok, err := ws.Connections.Send(interaction.AppID, "INTERACTION_CREATE", interaction)
 	if err != nil {
 		_ = c.AbortWithError(http.StatusInternalServerError, err)
 		return
+	}
+
+	if !ok {
+		c.AbortWithStatusJSON(http.StatusNotFound, gin.H{"error": "connection for application_id not found"})
 	}
 
 	c.JSON(http.StatusCreated, interaction)
@@ -68,10 +72,6 @@ func setInteractionDefaults(interaction *discordgo.Interaction, u discordgo.User
 			fmt.Sprintf("interaction:%s:%s", interaction.ID, snowflake.Generate().String()),
 		))
 	}
-
-	if interaction.AppID == "" {
-		interaction.AppID = u.ID
-	}
 }
 
 func validateInteraction(interaction *discordgo.Interaction) error {
@@ -82,7 +82,7 @@ func validateInteraction(interaction *discordgo.Interaction) error {
 	}
 
 	if interaction.AppID == "" {
-		errs = append(errs, errors.New("missing app_id"))
+		errs = append(errs, errors.New("missing application_id"))
 	}
 
 	if interaction.Type == 0 {
