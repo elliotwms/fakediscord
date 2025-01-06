@@ -126,10 +126,11 @@ func (s *InteractionsStage) an_interaction() *InteractionsStage {
 	return s
 }
 
-func (s *InteractionsStage) a_valid_interaction() {
+func (s *InteractionsStage) a_valid_interaction() *InteractionsStage {
 	s.interactionCreate = &discordgo.InteractionCreate{
 		Interaction: &discordgo.Interaction{
-			Type: discordgo.InteractionApplicationCommand,
+			AppID: s.session.State.User.ID,
+			Type:  discordgo.InteractionApplicationCommand,
 			Data: discordgo.ApplicationCommandInteractionData{
 				ID:          snowflake.Generate().String(),
 				Name:        "interaction",
@@ -139,6 +140,8 @@ func (s *InteractionsStage) a_valid_interaction() {
 			ChannelID: s.channel.ID,
 		},
 	}
+
+	return s
 }
 
 func (s *InteractionsStage) no_error_should_be_returned() *InteractionsStage {
@@ -153,31 +156,12 @@ func (s *InteractionsStage) an_error_should_be_returned() *InteractionsStage {
 	return s
 }
 
-func (s *InteractionsStage) the_interaction_has_guild_id() *InteractionsStage {
-	s.interactionCreate.GuildID = s.guild.ID
-
-	return s
-}
-
-func (s *InteractionsStage) the_interaction_has_type() *InteractionsStage {
-	s.interactionCreate.Type = discordgo.InteractionApplicationCommand
-	return s
-}
-
-func (s *InteractionsStage) the_interaction_has_channel_id() *InteractionsStage {
-	s.interactionCreate.ChannelID = s.channel.ID
-
-	return s
-}
-
-func (s *InteractionsStage) the_interaction_has_data() *InteractionsStage {
-	s.interactionCreate.Data = discordgo.ApplicationCommandInteractionData{}
-
-	return s
-}
-
 func (s *InteractionsStage) the_error_should_contain(contains string) *InteractionsStage {
 	s.require.ErrorContains(s.err, contains)
 
 	return s
+}
+
+func (s *InteractionsStage) the_interaction_has(modifier func(i *discordgo.InteractionCreate)) {
+	modifier(s.interactionCreate)
 }

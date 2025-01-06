@@ -54,7 +54,7 @@ func (c *Client) Interaction(i *discordgo.InteractionCreate) (*discordgo.Interac
 	}
 
 	if res.StatusCode != http.StatusCreated {
-		if res.StatusCode == http.StatusBadRequest {
+		if res.StatusCode == http.StatusBadRequest || res.StatusCode == http.StatusNotFound {
 			s := &struct {
 				Error string `json:"error"`
 			}{}
