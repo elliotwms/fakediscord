@@ -1,6 +1,10 @@
 package tests
 
-import "testing"
+import (
+	"testing"
+
+	"github.com/bwmarrin/discordgo"
+)
 
 func TestInteraction_Create(t *testing.T) {
 	given, when, then := NewInteractionStage(t)
@@ -18,71 +22,54 @@ func TestInteraction_Create(t *testing.T) {
 		the_command_handler_should_have_been_triggered()
 }
 
+func TestInteraction_Create_Invalid_Empty(t *testing.T) {
+	given, when, then := NewInteractionStage(t)
+
+	given.
+		an_interaction()
+
+	when.
+		the_interaction_is_triggered()
+
+	then.
+		an_error_should_be_returned()
+
+}
 func TestInteraction_Create_Invalid(t *testing.T) {
-	t.Run("empty", func(t *testing.T) {
-		given, when, then := NewInteractionStage(t)
+	tests := map[string]func(i *discordgo.InteractionCreate){
+		"missing type": func(i *discordgo.InteractionCreate) {
+			i.Type = 0
+		},
+		"missing guild_id": func(i *discordgo.InteractionCreate) {
+			i.GuildID = ""
+		},
+		"missing channel_id": func(i *discordgo.InteractionCreate) {
+			i.ChannelID = ""
+		},
+		"missing application_id": func(i *discordgo.InteractionCreate) {
+			i.AppID = ""
+		},
+		"connection for application_id not found": func(i *discordgo.InteractionCreate) {
+			i.AppID = "0290742494824366183" // a valid but non-existent ID
+		},
+	}
 
-		given.
-			an_interaction()
+	for err, modifier := range tests {
+		t.Run(err, func(t *testing.T) {
+			given, when, then := NewInteractionStage(t)
 
-		when.
-			the_interaction_is_triggered()
+			given.
+				a_valid_interaction().and().
+				the_interaction_has(modifier)
 
-		then.
-			an_error_should_be_returned()
+			when.
+				the_interaction_is_triggered()
 
-	})
-
-	t.Run("missing type", func(t *testing.T) {
-		given, when, then := NewInteractionStage(t)
-
-		given.
-			an_interaction().and().
-			the_interaction_has_guild_id().and().
-			the_interaction_has_channel_id()
-
-		when.
-			the_interaction_is_triggered()
-
-		then.
-			an_error_should_be_returned().and().
-			the_error_should_contain("missing type")
-	})
-
-	t.Run("missing guild id", func(t *testing.T) {
-		given, when, then := NewInteractionStage(t)
-
-		given.
-			an_interaction().and().
-			the_interaction_has_type().and().
-			the_interaction_has_data().and().
-			the_interaction_has_channel_id()
-
-		when.
-			the_interaction_is_triggered()
-
-		then.
-			an_error_should_be_returned().and().
-			the_error_should_contain("missing guild_id")
-
-	})
-
-	t.Run("missing channel id", func(t *testing.T) {
-		given, when, then := NewInteractionStage(t)
-
-		given.
-			an_interaction().and().
-			the_interaction_has_type().and().
-			the_interaction_has_data().and().
-			the_interaction_has_guild_id()
-
-		when.
-			the_interaction_is_triggered()
-
-		then.
-			an_error_should_be_returned().and().
-			the_error_should_contain("missing channel_id")
-	})
+			then.
+				an_error_should_be_returned().and().
+				the_error_should_contain(err)
+		})
+	}
 }
 
 func TestInteraction_Callback(t *testing.T) {
