@@ -2,7 +2,6 @@ package api
 
 import (
 	"errors"
-	"fmt"
 	"log/slog"
 	"net/http"
 
@@ -12,28 +11,98 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
+type commandKey struct {
+	guildID, name string
+	commandType   discordgo.ApplicationCommandType
+}
+
+func toCommandKey(command *discordgo.ApplicationCommand) commandKey {
+	return commandKey{
+		guildID:     command.GuildID,
+		commandType: command.Type,
+		name:        command.Name,
+	}
+}
+
 func applicationsController(r *gin.RouterGroup) {
 	r.Use(auth)
 
-	r.POST("/:application/guilds/:guild/commands", postGuildCommand)
-	r.GET("/:application/guilds/:guild/commands/:id", getGuildCommand)
-	r.DELETE("/:application/guilds/:guild/commands/:id", deleteGuildCommand)
+	// two sets of routes use the same handlers, as the only distinction is the guild ID used in the map lookup
+	r.GET("/:application/commands", getCommands)
+	r.PUT("/:application/commands", putCommands)
+	r.POST("/:application/commands", postCommand)
+	r.GET("/:application/commands/:id", getCommand)
+	r.DELETE("/:application/commands/:id", deleteCommand)
+
+	r.GET("/:application/guilds/:guild/commands", getCommands)
+	r.PUT("/:application/guilds/:guild/commands", putCommands)
+	r.POST("/:application/guilds/:guild/commands", postCommand)
+	r.GET("/:application/guilds/:guild/commands/:id", getCommand)
+	r.DELETE("/:application/guilds/:guild/commands/:id", deleteCommand)
 }
 
-// postGuildCommand creates a guild application command
-// https://discord.com/developers/docs/interactions/application-commands#create-guild-application-command
-func postGuildCommand(c *gin.Context) {
-	guildID := c.Param("guild")
+// getCommands returns application/guild commands
+// https://discord.com/developers/docs/interactions/application-commands#get-global-application-commands
+// https://discord.com/developers/docs/interactions/application-commands#get-guild-application-commands
+func getCommands(c *gin.Context) {
+	var commands []*discordgo.ApplicationCommand
+	storage.Commands.Range(func(k, v interface{}) bool {
+		command := v.(*discordgo.ApplicationCommand)
+		if command.ApplicationID == c.Param("application") && command.GuildID == c.Param("guild") {
+			commands = append(commands, command)
+		}
 
-	u, done := getUser(c)
-	if done {
+		return true
+	})
+
+	c.JSON(http.StatusOK, commands)
+}
+
+// putCommands bulk overwrites application/guild commands
+// https://discord.com/developers/docs/interactions/application-commands#bulk-overwrite-global-application-commands
+// https://discord.com/developers/docs/interactions/application-commands#bulk-overwrite-guild-application-commands
+func putCommands(c *gin.Context) {
+	appID, guildID := c.Param("application"), c.Param("guild")
+
+	// clear the commands for the application
+	storage.Commands.Range(func(k, v interface{}) bool {
+		command := v.(*discordgo.ApplicationCommand)
+		if command.ApplicationID == appID {
+			storage.Commands.Delete(k)
+			storage.CommandNames.Delete(toCommandKey(command))
+		}
+
+		return true
+	})
+
+	commands := make([]*discordgo.ApplicationCommand, 0)
+
+	if err := c.BindJSON(&commands); err != nil {
+		_ = c.AbortWithError(http.StatusBadRequest, err)
 		return
 	}
 
+	for _, command := range commands {
+		if command.ID == "" {
+			command.ID = snowflake.Generate().String()
+		}
+
+		command.ApplicationID = appID
+		command.GuildID = guildID
+
+		storage.CommandNames.Store(toCommandKey(command), command.ID)
+		storage.Commands.Store(command.ID, command)
+	}
+}
+
+// postCommand creates an application/guild command
+// https://discord.com/developers/docs/interactions/application-commands#create-global-application-command
+// https://discord.com/developers/docs/interactions/application-commands#create-guild-application-command
+func postCommand(c *gin.Context) {
 	command := &discordgo.ApplicationCommand{
 		ID:            snowflake.Generate().String(),
-		ApplicationID: u.ID,
-		GuildID:       guildID,
+		ApplicationID: c.Param("application"),
+		GuildID:       c.Param("guild"),
 	}
 
 	if err := c.BindJSON(command); err != nil {
@@ -41,13 +110,13 @@ func postGuildCommand(c *gin.Context) {
 		return
 	}
 
-	v, loaded := storage.CommandNames.LoadOrStore(commandKey(command), command.ID)
+	v, loaded := storage.CommandNames.LoadOrStore(toCommandKey(command), command.ID)
 	if loaded {
 		slog.Info("Replacing existing command", "name", command.Name, "type", command.Type)
 		command.ID = v.(string)
 	}
 
-	storage.Commands.Store(command.ID, *command)
+	storage.Commands.Store(command.ID, command)
 
 	if loaded {
 		c.JSON(http.StatusOK, command)
@@ -57,15 +126,11 @@ func postGuildCommand(c *gin.Context) {
 	c.JSON(http.StatusCreated, command)
 }
 
-func commandKey(command *discordgo.ApplicationCommand) string {
-	return fmt.Sprintf("%s:%d:%s", command.GuildID, command.Type, command.Name)
-}
-
-// getGuildCommand gets a guild application command
+// getCommand gets a guild/application command
+// https://discord.com/developers/docs/interactions/application-commands#get-global-application-command
 // https://discord.com/developers/docs/interactions/application-commands#get-guild-application-command
-func getGuildCommand(c *gin.Context) {
-	id := c.Param("id")
-	v, ok := storage.Commands.Load(id)
+func getCommand(c *gin.Context) {
+	v, ok := storage.Commands.Load(c.Param("id"))
 	if !ok {
 		_ = c.AbortWithError(http.StatusNotFound, errors.New("command not found"))
 		return
@@ -74,15 +139,17 @@ func getGuildCommand(c *gin.Context) {
 	c.JSON(http.StatusOK, v)
 }
 
-// deleteGuildCommand deletes a guild command
+// deleteCommand deletes an application/guild command
+// https://discord.com/developers/docs/interactions/application-commands#delete-application-application-command
 // https://discord.com/developers/docs/interactions/application-commands#delete-guild-application-command
-func deleteGuildCommand(c *gin.Context) {
-	id := c.Param("id")
-	_, ok := storage.Commands.LoadAndDelete(id)
+func deleteCommand(c *gin.Context) {
+	v, ok := storage.Commands.LoadAndDelete(c.Param("id"))
 	if !ok {
 		_ = c.AbortWithError(http.StatusNotFound, errors.New("command not found"))
 		return
 	}
+
+	storage.CommandNames.Delete(toCommandKey(v.(*discordgo.ApplicationCommand)))
 
 	c.Status(http.StatusNoContent)
 }
