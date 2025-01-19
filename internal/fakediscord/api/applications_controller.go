@@ -93,6 +93,8 @@ func putCommands(c *gin.Context) {
 		storage.CommandNames.Store(toCommandKey(command), command.ID)
 		storage.Commands.Store(command.ID, command)
 	}
+
+	c.JSON(http.StatusOK, commands)
 }
 
 // postCommand creates an application/guild command
