@@ -55,6 +55,7 @@ func createInteraction(c *gin.Context) {
 
 	if !ok {
 		c.AbortWithStatusJSON(http.StatusNotFound, gin.H{"error": "connection for application_id not found"})
+		return
 	}
 
 	c.JSON(http.StatusCreated, interaction)
