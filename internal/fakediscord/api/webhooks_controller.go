@@ -7,7 +7,6 @@ import (
 	"net/http"
 
 	"github.com/bwmarrin/discordgo"
-	"github.com/elliotwms/fakediscord/internal/fakediscord/builders"
 	"github.com/elliotwms/fakediscord/internal/fakediscord/storage"
 	"github.com/elliotwms/fakediscord/internal/snowflake"
 	"github.com/gin-gonic/gin"
@@ -69,12 +68,11 @@ func patchResponse(c *gin.Context) {
 	v, _ = storage.InteractionResponses.LoadOrStore(token, snowflake.Generate().String())
 	id := v.(string)
 
-	v, ok = storage.Users.Load(interaction.AppID)
+	_, ok = storage.Users.Load(interaction.AppID)
 	if !ok {
 		_ = c.AbortWithError(http.StatusNotFound, fmt.Errorf("user not found"))
 		return
 	}
-	user := v.(discordgo.User)
 
 	m, err := storage.State.Message(interaction.ChannelID, id)
 	if err != nil {
@@ -83,13 +81,11 @@ func patchResponse(c *gin.Context) {
 			return
 		}
 
-		// build a new message
-		slog.Info("message not found, creating new message", "id", id, "token", token)
-
-		m = builders.NewMessage(&user, interaction.ChannelID, interaction.GuildID).
-			WithID(id).
-			WithType(discordgo.MessageTypeReply).
-			Build()
+		c.AbortWithStatusJSON(http.StatusNotFound, discordgo.APIErrorMessage{
+			Message: "Unknown Webhook",
+			Code:    discordgo.ErrCodeUnknownWebhook,
+		})
+		return
 	}
 
 	updateMessage(m, edit)
