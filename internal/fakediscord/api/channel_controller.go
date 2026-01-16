@@ -37,6 +37,8 @@ func channelController(r *gin.RouterGroup) {
 	r.GET("/:channel/messages/:message/reactions/:reaction", getMessageReaction)
 	r.PUT("/:channel/messages/:message/reactions/:reaction/:user", putMessageReaction)
 	r.DELETE("/:channel/messages/:message/reactions", deleteMessageReactions)
+
+	r.POST("/:channel/threads", createChannelThread)
 }
 
 // https://discord.com/developers/docs/resources/channel#get-channel
@@ -376,4 +378,53 @@ func deleteMessageReactions(c *gin.Context) {
 	}
 
 	c.Status(http.StatusNoContent)
+}
+
+func createChannelThread(c *gin.Context) {
+	thread := &discordgo.ThreadStart{}
+
+	err := c.BindJSON(thread)
+	if err != nil {
+		_ = c.AbortWithError(http.StatusInternalServerError, err)
+	}
+
+	parent, err := storage.State.Channel(c.Param("channel"))
+	if err != nil {
+		c.AbortWithStatusJSON(http.StatusNotFound, gin.H{
+			"message": "Unknown Channel",
+			"code":    discordgo.ErrCodeUnknownChannel,
+		})
+		return
+	}
+
+	if thread.AutoArchiveDuration == 0 {
+		thread.AutoArchiveDuration = 3 * 24 * 60 // 3 days
+	}
+
+	channel := &discordgo.Channel{
+		ID:      snowflake.Generate().String(),
+		GuildID: parent.GuildID,
+		Name:    thread.Name,
+		Type:    thread.Type,
+		ThreadMetadata: &discordgo.ThreadMetadata{
+			AutoArchiveDuration: thread.AutoArchiveDuration,
+		},
+	}
+
+	err = storage.State.ChannelAdd(channel)
+	if err != nil {
+		_ = c.AbortWithError(http.StatusInternalServerError, err)
+		return
+	}
+
+	_, err = ws.Connections.Broadcast("THREAD_CREATE", discordgo.ChannelCreate{
+		Channel: channel,
+	})
+
+	if err != nil {
+		_ = c.AbortWithError(http.StatusInternalServerError, err)
+		return
+	}
+
+	c.JSON(http.StatusCreated, channel)
 }
