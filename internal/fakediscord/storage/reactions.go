@@ -45,3 +45,24 @@ func (r *reactionStore) DeleteMessageReactions(message string) {
 
 	delete(r.messages, message)
 }
+
+func (r *reactionStore) DeleteMessageReaction(message, reaction, user string) {
+	r.mx.Lock()
+	defer r.mx.Unlock()
+
+	if _, ok := r.messages[message]; !ok {
+		return
+	}
+
+	users, ok := r.messages[message][reaction]
+	if !ok {
+		return
+	}
+
+	for i, u := range users {
+		if u == user {
+			r.messages[message][reaction] = append(users[:i], users[i+1:]...)
+			return
+		}
+	}
+}

@@ -36,6 +36,7 @@ func channelController(r *gin.RouterGroup) {
 
 	r.GET("/:channel/messages/:message/reactions/:reaction", getMessageReaction)
 	r.PUT("/:channel/messages/:message/reactions/:reaction/:user", putMessageReaction)
+	r.DELETE("/:channel/messages/:message/reactions/:reaction/:user", deleteMessageReaction)
 	r.DELETE("/:channel/messages/:message/reactions", deleteMessageReactions)
 }
 
@@ -345,6 +346,53 @@ func putMessageReaction(c *gin.Context) {
 	storage.Reactions.Store(c.Param("message"), c.Param("reaction"), user.ID)
 
 	_, err = ws.Connections.Broadcast("MESSAGE_REACTION_ADD", e)
+	if err != nil {
+		_ = c.AbortWithError(http.StatusInternalServerError, err)
+		return
+	}
+
+	c.Status(http.StatusNoContent)
+}
+
+// https://discord.com/developers/docs/resources/message#delete-user-reaction
+func deleteMessageReaction(c *gin.Context) {
+	channel, err := storage.State.Channel(c.Param("channel"))
+	if err != nil {
+		handleStateErr(c, err)
+		return
+	}
+
+	var user *discordgo.User
+	id := c.Param("user")
+	if id == "@me" {
+		v, done := getUser(c)
+		if done {
+			return
+		}
+		user = &v
+	} else {
+		v, ok := storage.Users.Load(id)
+		if !ok {
+			c.AbortWithStatus(http.StatusNotFound)
+			return
+		}
+		u := v.(discordgo.User)
+		user = &u
+	}
+
+	storage.Reactions.DeleteMessageReaction(c.Param("message"), c.Param("reaction"), user.ID)
+
+	_, err = ws.Connections.Broadcast("MESSAGE_REACTION_REMOVE", &discordgo.MessageReactionRemove{
+		MessageReaction: &discordgo.MessageReaction{
+			UserID:    user.ID,
+			MessageID: c.Param("message"),
+			Emoji: discordgo.Emoji{
+				Name: c.Param("reaction"),
+			},
+			ChannelID: c.Param("channel"),
+			GuildID:   channel.GuildID,
+		},
+	})
 	if err != nil {
 		_ = c.AbortWithError(http.StatusInternalServerError, err)
 		return

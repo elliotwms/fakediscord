@@ -33,12 +33,21 @@ func TestReactionStore_StoreAndLoad(t *testing.T) {
 	assert.True(t, ok)
 }
 
+func TestReactionStore_DeleteMessageReaction(t *testing.T) {
+	Reactions.Store("deleteme", "🗑", "foo")
+	Reactions.Store("deleteme", "🗑", "bar")
+
+	Reactions.DeleteMessageReaction("deleteme", "🗑", "foo")
+	users, ok := Reactions.LoadMessageReaction("deleteme", "🗑")
+
+	require.NotEmpty(t, users)
+	assert.NotContains(t, users, "foo")
+	assert.True(t, ok)
+}
+
 func TestReactionStore_DeleteMessageReactions(t *testing.T) {
 	Reactions.Store("deleteme", "🗑", "@me")
 
-	_, ok := Reactions.LoadMessageReaction("deleteme", "🗑")
-
-	require.True(t, ok)
 	Reactions.DeleteMessageReactions("deleteme")
 	users, ok := Reactions.LoadMessageReaction("deleteme", "🗑")
 
