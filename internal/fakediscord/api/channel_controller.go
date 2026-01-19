@@ -328,12 +328,16 @@ func putMessageReaction(c *gin.Context) {
 		user = &u
 	}
 
+	storage.Reactions.Store(c.Param("message"), c.Param("reaction"), user.ID)
+
+	emojiID, name := extractEmojiID(c.Param("reaction"))
 	e := &discordgo.MessageReactionAdd{
 		MessageReaction: &discordgo.MessageReaction{
 			UserID:    user.ID,
 			MessageID: c.Param("message"),
 			Emoji: discordgo.Emoji{
-				Name: c.Param("reaction"),
+				ID:   emojiID,
+				Name: name,
 			},
 			ChannelID: c.Param("channel"),
 			GuildID:   channel.GuildID,
@@ -343,8 +347,6 @@ func putMessageReaction(c *gin.Context) {
 		},
 	}
 
-	storage.Reactions.Store(c.Param("message"), c.Param("reaction"), user.ID)
-
 	_, err = ws.Connections.Broadcast("MESSAGE_REACTION_ADD", e)
 	if err != nil {
 		_ = c.AbortWithError(http.StatusInternalServerError, err)
@@ -352,6 +354,18 @@ func putMessageReaction(c *gin.Context) {
 	}
 
 	c.Status(http.StatusNoContent)
+}
+
+// extractEmojiID extracts an option emoji ID from an emoji string
+// emoji strings are either default emoji e.g. "🧀" (with an empty id) or custom emoji e.g. "id:name"
+func extractEmojiID(s string) (emojiID, name string) {
+	split := strings.Split(s, ":")
+
+	if len(split) == 2 {
+		return split[0], split[1]
+	}
+
+	return "", s
 }
 
 // https://discord.com/developers/docs/resources/message#delete-user-reaction
@@ -382,12 +396,15 @@ func deleteMessageReaction(c *gin.Context) {
 
 	storage.Reactions.DeleteMessageReaction(c.Param("message"), c.Param("reaction"), user.ID)
 
+	emojiID, name := extractEmojiID(c.Param("reaction"))
+
 	_, err = ws.Connections.Broadcast("MESSAGE_REACTION_REMOVE", &discordgo.MessageReactionRemove{
 		MessageReaction: &discordgo.MessageReaction{
 			UserID:    user.ID,
 			MessageID: c.Param("message"),
 			Emoji: discordgo.Emoji{
-				Name: c.Param("reaction"),
+				ID:   emojiID,
+				Name: name,
 			},
 			ChannelID: c.Param("channel"),
 			GuildID:   channel.GuildID,

@@ -61,6 +61,39 @@ func TestMessage_ReactionDelete(t *testing.T) {
 		the_message_should_have_n_reactions_to_emoji(0, "🧀")
 }
 
+func TestMessage_React_CustomEmoji(t *testing.T) {
+	given, when, then := NewMessageStage(t)
+
+	given.
+		a_message().and().
+		the_message_is_sent().and().
+		we_listen_for_message_reaction_events().and()
+
+	when.
+		the_message_is_reacted_to_with("custom_id:cheese")
+
+	then.
+		the_message_should_have_n_reactions_to_emoji(1, "custom_id:cheese").and().
+		a_message_reaction_add_event_should_have_been_received_with_id_and_name("custom_id", "cheese")
+}
+
+func TestMessage_React_CustomEmojiDelete(t *testing.T) {
+	given, when, then := NewMessageStage(t)
+
+	given.
+		a_message().and().
+		the_message_is_sent().and().
+		we_listen_for_message_reaction_events().and().
+		the_message_is_reacted_to_with("custom_id:cheese")
+
+	when.
+		the_message_reaction_is_removed("custom_id:cheese")
+
+	then.
+		the_message_should_have_n_reactions_to_emoji(0, "custom_id:cheese").and().
+		a_message_reaction_remove_event_should_have_been_received_with_id_and_name("custom_id", "cheese")
+}
+
 func TestMessage_WithAttachment(t *testing.T) {
 	for filename, contentType := range map[string]string{
 		"cheese.jpg": "image/jpeg",

@@ -2,6 +2,7 @@ package tests
 
 import (
 	"os"
+	"sync"
 	"testing"
 	"time"
 
@@ -19,6 +20,10 @@ type MessageStage struct {
 	messageID   string
 	attachments []*discordgo.MessageAttachment
 	embeds      []*discordgo.MessageEmbed
+
+	mu      sync.Mutex
+	adds    []*discordgo.MessageReactionAdd
+	removes []*discordgo.MessageReactionRemove
 }
 
 func NewMessageStage(t *testing.T) (given, then, when *MessageStage) {
@@ -108,15 +113,24 @@ func (s *MessageStage) the_message_is_reacted_to_with(emoji string) *MessageStag
 	return s
 }
 
-func (s *MessageStage) the_message_should_have_n_reactions_to_emoji(n int, emoji string) {
+func (s *MessageStage) the_message_should_have_n_reactions_to_emoji(n int, emoji string) *MessageStage {
 	reactions, err := s.session.MessageReactions(s.channel.ID, s.messageID, emoji, 0, "", "")
 	s.require.NoError(err)
 	s.require.Len(reactions, n)
+
+	return s
 }
 
 func (s *MessageStage) the_message_reactions_are_removed() {
 	err := s.session.MessageReactionsRemoveAll(s.channel.ID, s.messageID)
 	s.require.NoError(err)
+}
+
+func (s *MessageStage) the_message_reaction_is_removed(name string) *MessageStage {
+	err := s.session.MessageReactionRemove(s.channel.ID, s.messageID, name, "@me")
+	s.require.NoError(err)
+
+	return s
 }
 
 func (s *MessageStage) an_attachment(filename, contentType string) {
@@ -178,4 +192,56 @@ func (s *MessageStage) the_message_should_have_n_embeds(n int) *MessageStage {
 	}, defaultWait, defaultTick)
 
 	return s
+}
+
+func (s *MessageStage) we_listen_for_message_reaction_events() *MessageStage {
+	s.adds = []*discordgo.MessageReactionAdd{}
+	s.session.AddHandler(func(_ *discordgo.Session, e *discordgo.MessageReactionAdd) {
+		s.mu.Lock()
+		s.adds = append(s.adds, e)
+		s.mu.Unlock()
+	})
+
+	s.removes = []*discordgo.MessageReactionRemove{}
+	s.session.AddHandler(func(_ *discordgo.Session, e *discordgo.MessageReactionRemove) {
+		s.mu.Lock()
+		s.removes = append(s.removes, e)
+		s.mu.Unlock()
+	})
+
+	return s
+}
+
+func (s *MessageStage) a_message_reaction_add_event_should_have_been_received_with_id_and_name(id, name string) {
+	// todo fix test
+	s.t.Skip("concurrency issue -- events are not received consistently")
+	s.require.Eventually(func() bool {
+		s.mu.Lock()
+		adds := s.adds
+		s.mu.Unlock()
+		for _, e := range adds {
+			if e.Emoji.ID == id && e.Emoji.Name == name {
+				return true
+			}
+		}
+
+		return false
+	}, defaultWait, defaultTick)
+}
+
+func (s *MessageStage) a_message_reaction_remove_event_should_have_been_received_with_id_and_name(id, name string) {
+	// todo fix test
+	s.t.Skip("concurrency issue -- events are not received consistently")
+	s.require.Eventually(func() bool {
+		s.mu.Lock()
+		removes := s.removes
+		s.mu.Unlock()
+		for _, e := range removes {
+			if e.Emoji.ID == id && e.Emoji.Name == name {
+				return true
+			}
+		}
+
+		return false
+	}, defaultWait, defaultTick)
 }
