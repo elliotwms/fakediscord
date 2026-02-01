@@ -58,12 +58,17 @@ func (p *ConnPool) Broadcast(t string, body interface{}) (n int, err error) {
 		RawData:  bs,
 	}
 
+	var errs []error
 	p.conns.Range(func(_, value any) bool {
-		err = value.(*websocket.Conn).WriteJSON(e)
-		return err != nil
+		if writeErr := value.(*websocket.Conn).WriteJSON(e); writeErr != nil {
+			errs = append(errs, writeErr)
+		} else {
+			n++
+		}
+		return true // continue to all connections
 	})
 
-	return 0, err
+	return n, errors.Join(errs...)
 }
 
 // Send sends an event of type t and payload body to the first registered connection for a given user ID
