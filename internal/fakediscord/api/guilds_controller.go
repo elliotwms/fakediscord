@@ -99,7 +99,8 @@ func postGuildChannels(c *gin.Context) {
 
 	err := c.BindJSON(&channel)
 	if err != nil {
-		_ = c.AbortWithError(http.StatusInternalServerError, err)
+		_ = c.AbortWithError(http.StatusBadRequest, err)
+		return
 	}
 
 	channel.ID = snowflake.Generate().String()
