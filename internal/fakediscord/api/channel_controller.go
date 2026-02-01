@@ -1,10 +1,12 @@
 package api
 
 import (
+	"bytes"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"image"
+	"io"
 	"log"
 	"net/http"
 	"regexp"
@@ -192,10 +194,18 @@ func parseMessageSend(c *gin.Context) (*discordgo.MessageSend, error) {
 			if err != nil {
 				return nil, err
 			}
+
+			// Read file contents into buffer and close the file handle
+			data, err := io.ReadAll(open)
+			open.Close()
+			if err != nil {
+				return nil, err
+			}
+
 			file := &discordgo.File{
 				Name:        headers[0].Filename,
 				ContentType: headers[0].Header.Get("Content-Type"),
-				Reader:      open,
+				Reader:      bytes.NewReader(data),
 			}
 			messageSend.Files = append(messageSend.Files, file)
 		}
