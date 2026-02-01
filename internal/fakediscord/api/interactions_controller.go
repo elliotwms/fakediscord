@@ -24,7 +24,7 @@ func interactionsController(r *gin.RouterGroup) {
 }
 
 func createInteraction(c *gin.Context) {
-	u, done := getUser(c)
+	_, done := getUser(c)
 	if done {
 		return
 	}
@@ -35,7 +35,7 @@ func createInteraction(c *gin.Context) {
 		return
 	}
 
-	setInteractionDefaults(interaction, u)
+	setInteractionDefaults(interaction)
 
 	if err := validateInteraction(interaction); err != nil {
 		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": err.Error()})
@@ -62,7 +62,7 @@ func createInteraction(c *gin.Context) {
 }
 
 // setInteractionDefaults sets some default values when creating a new interaction
-func setInteractionDefaults(interaction *discordgo.Interaction, u discordgo.User) {
+func setInteractionDefaults(interaction *discordgo.Interaction) {
 	if interaction.ID == "" {
 		interaction.ID = snowflake.Generate().String()
 	}
