@@ -356,13 +356,13 @@ func putMessageReaction(c *gin.Context) {
 	c.Status(http.StatusNoContent)
 }
 
-// extractEmojiID extracts an option emoji ID from an emoji string
-// emoji strings are either default emoji e.g. "🧀" (with an empty id) or custom emoji e.g. "id:name"
+// extractEmojiID extracts an optional emoji ID from an emoji string
+// emoji strings are either default emoji e.g. "🧀" (with an empty id) or custom emoji e.g. "name:id"
 func extractEmojiID(s string) (emojiID, name string) {
 	split := strings.Split(s, ":")
 
 	if len(split) == 2 {
-		return split[0], split[1]
+		return split[1], split[0] // Discord format is name:id
 	}
 
 	return "", s
