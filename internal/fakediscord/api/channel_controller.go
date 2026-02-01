@@ -310,22 +310,9 @@ func putMessageReaction(c *gin.Context) {
 		return
 	}
 
-	var user *discordgo.User
-	id := c.Param("user")
-	if id == "@me" {
-		v, done := getUser(c)
-		if done {
-			return
-		}
-		user = &v
-	} else {
-		v, ok := storage.Users.Load(id)
-		if !ok {
-			c.AbortWithStatus(http.StatusNotFound)
-			return
-		}
-		u := v.(discordgo.User)
-		user = &u
+	user, ok := getUserByID(c, c.Param("user"))
+	if !ok {
+		return
 	}
 
 	storage.Reactions.Store(c.Param("message"), c.Param("reaction"), user.ID)
@@ -368,6 +355,26 @@ func extractEmojiID(s string) (emojiID, name string) {
 	return "", s
 }
 
+// getUserByID retrieves a user by ID, handling the special "@me" case
+// Returns the user and a boolean indicating if the request should continue (false means abort was called)
+func getUserByID(c *gin.Context, id string) (*discordgo.User, bool) {
+	if id == "@me" {
+		v, done := getUser(c)
+		if done {
+			return nil, false
+		}
+		return &v, true
+	}
+
+	v, ok := storage.Users.Load(id)
+	if !ok {
+		c.AbortWithStatus(http.StatusNotFound)
+		return nil, false
+	}
+	u := v.(discordgo.User)
+	return &u, true
+}
+
 // https://discord.com/developers/docs/resources/message#delete-user-reaction
 func deleteMessageReaction(c *gin.Context) {
 	channel, err := storage.State.Channel(c.Param("channel"))
@@ -376,22 +383,9 @@ func deleteMessageReaction(c *gin.Context) {
 		return
 	}
 
-	var user *discordgo.User
-	id := c.Param("user")
-	if id == "@me" {
-		v, done := getUser(c)
-		if done {
-			return
-		}
-		user = &v
-	} else {
-		v, ok := storage.Users.Load(id)
-		if !ok {
-			c.AbortWithStatus(http.StatusNotFound)
-			return
-		}
-		u := v.(discordgo.User)
-		user = &u
+	user, ok := getUserByID(c, c.Param("user"))
+	if !ok {
+		return
 	}
 
 	storage.Reactions.DeleteMessageReaction(c.Param("message"), c.Param("reaction"), user.ID)
