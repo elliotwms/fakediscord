@@ -11,11 +11,11 @@ type Message struct {
 	m *discordgo.Message
 }
 
-func NewMessage(author *discordgo.User, channelD, guildID string) *Message {
+func NewMessage(author *discordgo.User, channelID, guildID string) *Message {
 	return &Message{
 		m: &discordgo.Message{
 			ID:        snowflake.Generate().String(),
-			ChannelID: channelD,
+			ChannelID: channelID,
 			GuildID:   guildID,
 			Author:    author,
 			Timestamp: time.Now(),
