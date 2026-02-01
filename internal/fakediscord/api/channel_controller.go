@@ -5,7 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"image"
-	"log"
+	"log/slog"
 	"net/http"
 	"regexp"
 	"strings"
@@ -186,7 +186,7 @@ func parseMessageSend(c *gin.Context) (*discordgo.MessageSend, error) {
 		}
 
 		for s, headers := range form.File {
-			log.Printf("Parsing file %s", s)
+			slog.Info("Parsing file", "key", s)
 
 			open, err := headers[0].Open()
 			if err != nil {
