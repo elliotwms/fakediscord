@@ -6,6 +6,7 @@ import (
 	"log/slog"
 	"net/http"
 	"os"
+	"time"
 
 	"github.com/bwmarrin/discordgo"
 	"github.com/elliotwms/fakediscord/internal/fakediscord/api"
@@ -83,5 +84,11 @@ func serve(ctx context.Context) error {
 
 	<-ctx.Done()
 	slog.Info("Shutting down server...")
-	return s.Shutdown(ctx)
+
+	// Create a new context for shutdown with a grace period
+	// since the original context is already cancelled
+	shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	return s.Shutdown(shutdownCtx)
 }
