@@ -4,8 +4,10 @@ import (
 	"context"
 	"embed"
 	"fmt"
+	"net/http"
 	"os"
 	"testing"
+	"time"
 
 	"github.com/bwmarrin/discordgo"
 	"github.com/elliotwms/fakediscord/internal/fakediscord"
@@ -36,6 +38,22 @@ func setup() {
 			panic(err)
 		}
 	}()
+
+	// Wait for server to be ready
+	waitForServer("http://localhost:8080/api/v9/gateway/", 5*time.Second)
+}
+
+func waitForServer(url string, timeout time.Duration) {
+	deadline := time.Now().Add(timeout)
+	for time.Now().Before(deadline) {
+		resp, err := http.Get(url)
+		if err == nil {
+			resp.Body.Close()
+			return
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+	panic("server did not start within timeout")
 }
 
 func readConfig() config.Config {
