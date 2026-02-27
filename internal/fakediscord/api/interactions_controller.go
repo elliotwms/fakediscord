@@ -42,6 +42,18 @@ func createInteraction(c *gin.Context) {
 		return
 	}
 
+	// validate interaction data
+	switch interaction.Data.Type() {
+	case discordgo.InteractionApplicationCommand:
+		data := interaction.ApplicationCommandData()
+
+		_, ok := storage.Commands.Load(data.ID)
+		if !ok {
+			c.AbortWithStatusJSON(http.StatusNotFound, gin.H{"error": "command not found"})
+			return
+		}
+	}
+
 	storage.Interactions.Store(interaction.Token, *interaction)
 
 	// todo send to webhook (query param?)
