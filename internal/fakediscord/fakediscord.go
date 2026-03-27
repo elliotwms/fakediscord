@@ -61,6 +61,8 @@ func generate(c config.Config) {
 }
 
 func serve(ctx context.Context) error {
+	gin.SetMode(gin.ReleaseMode)
+
 	router := gin.Default()
 
 	// register a shim to override the websocket
