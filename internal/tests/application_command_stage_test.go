@@ -104,3 +104,21 @@ func (s *ApplicationCommandStage) guildID() string {
 func (s *ApplicationCommandStage) the_id_should_not_have_changed() {
 	s.require.Equal(s.originalID, s.command.ID)
 }
+
+// the_commands_are_overwritten_in_another_guild bulk overwrites the commands of a separate guild, which should not
+// affect commands in any other scope
+func (s *ApplicationCommandStage) the_commands_are_overwritten_in_another_guild() {
+	guild, _, err := setupGuild(s.t, s.session, "other")
+	s.require.NoError(err)
+
+	_, s.err = s.session.ApplicationCommandBulkOverwrite(appID, guild.ID, []*discordgo.ApplicationCommand{
+		{Type: discordgo.ChatApplicationCommand, Name: "other"},
+	})
+}
+
+func (s *ApplicationCommandStage) the_command_is_fetched_from_another_guild() {
+	guild, _, err := setupGuild(s.t, s.session, "other")
+	s.require.NoError(err)
+
+	_, s.err = s.session.ApplicationCommand(appID, guild.ID, s.command.ID)
+}
