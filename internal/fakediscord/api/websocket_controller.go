@@ -33,7 +33,7 @@ func handleWS(c *gin.Context) {
 		}
 	}()
 
-	if err = internalws.Handle(ws); websocket.IsUnexpectedCloseError(err, websocket.CloseNormalClosure) {
+	if err = internalws.Handle(ws); err != nil && !websocket.IsCloseError(err, websocket.CloseNormalClosure) {
 		log.Printf("websocket error: %s", err)
 	}
 }

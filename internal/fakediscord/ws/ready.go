@@ -5,11 +5,11 @@ import (
 
 	"github.com/bwmarrin/discordgo"
 	"github.com/elliotwms/fakediscord/internal/fakediscord/storage"
+	"github.com/elliotwms/fakediscord/internal/fakediscord/ws/connpool"
 	"github.com/elliotwms/fakediscord/internal/sequence"
-	"github.com/gorilla/websocket"
 )
 
-func ready(ws *websocket.Conn, u *discordgo.User) error {
+func ready(ws *connpool.Conn, u *discordgo.User) error {
 	log.Print("sending READY")
 
 	return ws.WriteJSON(Event{

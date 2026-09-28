@@ -1,9 +1,8 @@
 package ws
 
 import (
-	"encoding/json"
 	"errors"
-	"github.com/elliotwms/fakediscord/internal/fakediscord/ws/connpool"
+	"fmt"
 	"log"
 	"log/slog"
 	"strings"
@@ -11,13 +10,25 @@ import (
 
 	"github.com/bwmarrin/discordgo"
 	"github.com/elliotwms/fakediscord/internal/fakediscord/auth"
+	"github.com/elliotwms/fakediscord/internal/fakediscord/ws/connpool"
 	"github.com/gorilla/websocket"
 )
 
 var Connections = connpool.New(slog.Default())
 
+// https://discord.com/developers/docs/topics/opcodes-and-status-codes#gateway-gateway-opcodes
+const (
+	opHeartbeat    = 1
+	opHello        = 10
+	opHeartbeatACK = 11
+)
+
+const heartbeatInterval = 10 * time.Second
+
 func Handle(ws *websocket.Conn) error {
-	u, err := establishConnection(ws)
+	conn := connpool.NewConn(ws)
+
+	u, err := establishConnection(conn)
 	if err != nil {
 		return err
 	}
@@ -25,13 +36,13 @@ func Handle(ws *websocket.Conn) error {
 	// once a connection is established it can be added to the pool
 	// todo consider race condition between connection being established and events being broadcast intended for it
 
-	id := Connections.Add(u.ID, ws)
+	id := Connections.Add(u.ID, conn)
 	defer Connections.Remove(id)
 
 	// todo consider refactoring
 	// this is a bit of a leaky abstraction as connections are used after being added to the pool
 	for {
-		if err := handleMessage(ws); err != nil {
+		if err := handleMessage(conn); err != nil {
 			return err
 		}
 	}
@@ -45,13 +56,14 @@ type Event struct {
 }
 
 type helloOp struct {
-	HeartbeatInterval time.Duration `json:"heartbeat_interval"`
+	// HeartbeatInterval is in milliseconds
+	HeartbeatInterval int64 `json:"heartbeat_interval"`
 }
 
-func establishConnection(c *websocket.Conn) (*discordgo.User, error) {
+func establishConnection(c *connpool.Conn) (*discordgo.User, error) {
 	err := c.WriteJSON(Event{
-		Operation: 10,
-		Data:      helloOp{HeartbeatInterval: 10 * time.Second},
+		Operation: opHello,
+		Data:      helloOp{HeartbeatInterval: heartbeatInterval.Milliseconds()},
 	})
 	if err != nil {
 		return nil, err
@@ -59,25 +71,28 @@ func establishConnection(c *websocket.Conn) (*discordgo.User, error) {
 
 	log.Print("waiting for identify")
 
-	i := &discordgo.Identify{}
+	// only the token is needed from the identify payload. discordgo.Identify is not used as it does not round-trip
+	// (e.g. presence.game.created_at is sent as a string but unmarshalled as an int64)
+	i := &struct {
+		Token string `json:"token"`
+	}{}
 
-	err = c.ReadJSON(&Event{Data: i})
-	if err != nil && errors.Is(err, &json.UnmarshalTypeError{}) {
-		// todo fix json.UnmarshalTypeError
-		return nil, err
+	if err = c.ReadJSON(&Event{Data: i}); err != nil {
+		return nil, fmt.Errorf("read identify: %w", err)
 	}
 
 	u, err := authUser(i.Token)
 	if err != nil {
-		log.Printf("error authing user: %s\n", err)
-		return nil, c.Close()
+		return nil, fmt.Errorf("authenticate: %w", err)
 	}
 
 	if err = ready(c, u); err != nil {
 		return nil, err
 	}
 
-	sendSignOnGuildCreateEvents(c)
+	if err = sendSignOnGuildCreateEvents(c); err != nil {
+		return nil, err
+	}
 
 	return u, nil
 }
@@ -91,14 +106,19 @@ func authUser(token string) (u *discordgo.User, err error) {
 	return auth.Authenticate(s[1]), nil
 }
 
-func handleMessage(ws *websocket.Conn) error {
+func handleMessage(c *connpool.Conn) error {
 	var e Event
 
-	err := ws.ReadJSON(&e)
+	err := c.ReadJSON(&e)
 	if err != nil {
 		return err
 	}
 
 	log.Printf("read message %d, %v", e.Operation, e.Data)
+
+	if e.Operation == opHeartbeat {
+		return c.WriteJSON(Event{Operation: opHeartbeatACK})
+	}
+
 	return nil
 }

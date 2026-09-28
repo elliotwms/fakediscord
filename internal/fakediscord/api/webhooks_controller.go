@@ -37,6 +37,7 @@ func getResponse(c *gin.Context) {
 	v, ok := storage.Interactions.Load(c.Param("token"))
 	if !ok {
 		_ = c.AbortWithError(http.StatusNotFound, errors.New("interaction not found"))
+		return
 	}
 	i := v.(discordgo.Interaction)
 

@@ -48,7 +48,7 @@ func getCommands(c *gin.Context) {
 	var commands []*discordgo.ApplicationCommand
 	storage.Commands.Range(func(k, v interface{}) bool {
 		command := v.(*discordgo.ApplicationCommand)
-		if command.ApplicationID == c.Param("application") && command.GuildID == c.Param("guild") {
+		if inScope(command, c.Param("application"), c.Param("guild")) {
 			commands = append(commands, command)
 		}
 
@@ -64,23 +64,23 @@ func getCommands(c *gin.Context) {
 func putCommands(c *gin.Context) {
 	appID, guildID := c.Param("application"), c.Param("guild")
 
-	// clear the commands for the application
-	storage.Commands.Range(func(k, v interface{}) bool {
-		command := v.(*discordgo.ApplicationCommand)
-		if command.ApplicationID == appID {
-			storage.Commands.Delete(k)
-			storage.CommandNames.Delete(toCommandKey(command))
-		}
-
-		return true
-	})
-
 	commands := make([]*discordgo.ApplicationCommand, 0)
 
 	if err := c.BindJSON(&commands); err != nil {
 		_ = c.AbortWithError(http.StatusBadRequest, err)
 		return
 	}
+
+	// clear the existing commands for the application in this scope (global or guild)
+	storage.Commands.Range(func(k, v interface{}) bool {
+		command := v.(*discordgo.ApplicationCommand)
+		if inScope(command, appID, guildID) {
+			storage.Commands.Delete(k)
+			storage.CommandNames.Delete(toCommandKey(command))
+		}
+
+		return true
+	})
 
 	for _, command := range commands {
 		if command.ID == "" {
@@ -132,26 +132,48 @@ func postCommand(c *gin.Context) {
 // https://discord.com/developers/docs/interactions/application-commands#get-global-application-command
 // https://discord.com/developers/docs/interactions/application-commands#get-guild-application-command
 func getCommand(c *gin.Context) {
-	v, ok := storage.Commands.Load(c.Param("id"))
+	command, ok := loadCommand(c)
 	if !ok {
 		_ = c.AbortWithError(http.StatusNotFound, errors.New("command not found"))
 		return
 	}
 
-	c.JSON(http.StatusOK, v)
+	c.JSON(http.StatusOK, command)
 }
 
 // deleteCommand deletes an application/guild command
 // https://discord.com/developers/docs/interactions/application-commands#delete-application-application-command
 // https://discord.com/developers/docs/interactions/application-commands#delete-guild-application-command
 func deleteCommand(c *gin.Context) {
-	v, ok := storage.Commands.LoadAndDelete(c.Param("id"))
+	command, ok := loadCommand(c)
 	if !ok {
 		_ = c.AbortWithError(http.StatusNotFound, errors.New("command not found"))
 		return
 	}
 
-	storage.CommandNames.Delete(toCommandKey(v.(*discordgo.ApplicationCommand)))
+	storage.Commands.Delete(command.ID)
+	storage.CommandNames.Delete(toCommandKey(command))
 
 	c.Status(http.StatusNoContent)
+}
+
+// loadCommand loads the command from the request path, provided it belongs to the application and guild (or global
+// scope) in the path
+func loadCommand(c *gin.Context) (*discordgo.ApplicationCommand, bool) {
+	v, ok := storage.Commands.Load(c.Param("id"))
+	if !ok {
+		return nil, false
+	}
+
+	command := v.(*discordgo.ApplicationCommand)
+	if !inScope(command, c.Param("application"), c.Param("guild")) {
+		return nil, false
+	}
+
+	return command, true
+}
+
+// inScope reports whether the command belongs to the application, and to the guild (or is global if guildID is empty)
+func inScope(command *discordgo.ApplicationCommand, appID, guildID string) bool {
+	return command.ApplicationID == appID && command.GuildID == guildID
 }
