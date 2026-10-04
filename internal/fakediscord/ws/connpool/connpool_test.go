@@ -7,6 +7,7 @@ import (
 	"strings"
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/elliotwms/fakediscord/internal/snowflake"
 	"github.com/gorilla/websocket"
@@ -73,4 +74,67 @@ func TestConnPool_ConcurrentBroadcast(t *testing.T) {
 	}
 
 	wg.Wait()
+}
+
+// TestConnPool_BroadcastToStalledConnection checks that a client which stops reading does not block broadcasts
+// indefinitely, and that its connection is closed
+func TestConnPool_BroadcastToStalledConnection(t *testing.T) {
+	writeTimeout = 100 * time.Millisecond
+	t.Cleanup(func() { writeTimeout = 10 * time.Second })
+
+	p := New(slog.Default())
+	upgrader := websocket.Upgrader{}
+	added := make(chan struct{})
+	closed := make(chan struct{})
+
+	s := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		ws, err := upgrader.Upgrade(w, r, nil)
+		if err != nil {
+			t.Errorf("upgrade: %v", err)
+			return
+		}
+		k := p.Add("user", NewConn(ws))
+		close(added)
+
+		for {
+			if _, _, err := ws.ReadMessage(); err != nil {
+				p.Remove(k)
+				close(closed)
+				return
+			}
+		}
+	}))
+	defer s.Close()
+
+	// the client connects but never reads
+	c, _, err := websocket.DefaultDialer.Dial("ws"+strings.TrimPrefix(s.URL, "http"), nil)
+	require.NoError(t, err)
+	defer func() { _ = c.Close() }()
+	<-added
+
+	payload := strings.Repeat("x", 1<<20)
+
+	done := make(chan error)
+	go func() {
+		// keep writing until the socket buffers fill and a write times out
+		for {
+			if _, err := p.Broadcast("TEST", payload); err != nil {
+				done <- err
+				return
+			}
+		}
+	}()
+
+	select {
+	case err := <-done:
+		require.Error(t, err)
+	case <-time.After(10 * time.Second):
+		t.Fatal("broadcast blocked on a stalled connection")
+	}
+
+	select {
+	case <-closed:
+	case <-time.After(time.Second):
+		t.Fatal("stalled connection was not closed")
+	}
 }
