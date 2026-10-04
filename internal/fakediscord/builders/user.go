@@ -59,3 +59,15 @@ func (u *User) Bot() *User {
 
 	return u
 }
+
+// Public returns a copy of the user which is safe to include in API responses and events, i.e. without its token
+func Public(u *discordgo.User) *discordgo.User {
+	if u == nil {
+		return nil
+	}
+
+	public := *u
+	public.Token = ""
+
+	return &public
+}

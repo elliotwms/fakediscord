@@ -345,8 +345,7 @@ func getMessageReaction(c *gin.Context) {
 		u := &discordgo.User{ID: v}
 		if stored, ok := storage.Users.Load(v); ok {
 			su := stored.(discordgo.User)
-			su.Token = ""
-			u = &su
+			u = builders.Public(&su)
 		}
 		users = append(users, u)
 	}
@@ -387,7 +386,7 @@ func putMessageReaction(c *gin.Context) {
 			GuildID:   channel.GuildID,
 		},
 		Member: &discordgo.Member{
-			User: user,
+			User: builders.Public(user),
 		},
 	}
 

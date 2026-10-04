@@ -17,7 +17,7 @@ func NewMessage(author *discordgo.User, channelID, guildID string) *Message {
 			ID:        snowflake.Generate().String(),
 			ChannelID: channelID,
 			GuildID:   guildID,
-			Author:    author,
+			Author:    Public(author),
 			Timestamp: time.Now(),
 		},
 	}

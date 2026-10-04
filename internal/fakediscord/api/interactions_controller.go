@@ -71,7 +71,7 @@ func setInteractionDefaults(interaction *discordgo.Interaction, u discordgo.User
 	if interaction.Member == nil && interaction.User == nil {
 		interaction.Member = &discordgo.Member{
 			GuildID: interaction.GuildID,
-			User:    &u,
+			User:    builders.Public(&u),
 		}
 	}
 
