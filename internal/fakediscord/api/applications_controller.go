@@ -45,7 +45,7 @@ func applicationsController(r *gin.RouterGroup) {
 // https://discord.com/developers/docs/interactions/application-commands#get-global-application-commands
 // https://discord.com/developers/docs/interactions/application-commands#get-guild-application-commands
 func getCommands(c *gin.Context) {
-	var commands []*discordgo.ApplicationCommand
+	commands := []*discordgo.ApplicationCommand{}
 	storage.Commands.Range(func(k, v interface{}) bool {
 		command := v.(*discordgo.ApplicationCommand)
 		if inScope(command, c.Param("application"), c.Param("guild")) {
