@@ -1,6 +1,7 @@
 package tests
 
 import (
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -18,7 +19,7 @@ type InteractionsStage struct {
 	channel           *discordgo.Channel
 	interactionCreate *discordgo.InteractionCreate
 	interaction       *discordgo.InteractionCreate
-	handlerCalled     int
+	handlerCalled     atomic.Int32
 	err               error
 }
 
@@ -49,7 +50,7 @@ func (s *InteractionsStage) and() *InteractionsStage {
 
 func (s *InteractionsStage) a_registered_message_command_handler() *InteractionsStage {
 	s.session.AddHandler(func(_ *discordgo.Session, e *discordgo.InteractionCreate) {
-		s.handlerCalled++
+		s.handlerCalled.Add(1)
 	})
 
 	return s
@@ -67,7 +68,7 @@ func (s *InteractionsStage) the_interaction_is_triggered() *InteractionsStage {
 
 func (s *InteractionsStage) the_command_handler_should_have_been_triggered() *InteractionsStage {
 	s.require.Eventually(func() bool {
-		return s.handlerCalled > 0
+		return s.handlerCalled.Load() > 0
 	}, time.Second, 50*time.Millisecond)
 
 	return s

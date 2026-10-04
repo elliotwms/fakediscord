@@ -150,10 +150,13 @@ func (s *MessageStage) an_attachment(filename, contentType string) {
 func (s *MessageStage) the_message_should_have_n_attachments(n int) *MessageStage {
 	s.require.Eventually(func() bool {
 		m, err := s.session.ChannelMessage(s.channel.ID, s.messageID)
+		if err != nil {
+			return false
+		}
 
 		s.attachments = m.Attachments
 
-		return err == nil && len(m.Attachments) == n
+		return len(m.Attachments) == n
 	}, defaultWait, defaultTick)
 
 	return s
