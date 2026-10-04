@@ -2,10 +2,9 @@ package fakediscord
 
 import (
 	"context"
-	"errors"
+	"fmt"
 	"log/slog"
 	"net/http"
-	"os"
 	"time"
 
 	"github.com/bwmarrin/discordgo"
@@ -21,7 +20,9 @@ import (
 // it should be set via ldflags when building (see Dockerfile)
 var Version = "v0.0.0+unknown"
 
-func Run(ctx context.Context, c config.Config) error {
+// Run starts fakediscord listening on addr (e.g. ":8080"), bootstrapped with the resources in c. It blocks until ctx is
+// cancelled or the server fails
+func Run(ctx context.Context, addr string, c config.Config) error {
 	// initiate the single-node snowflake ID generator
 	if err := snowflake.Configure(0); err != nil {
 		return err
@@ -29,14 +30,16 @@ func Run(ctx context.Context, c config.Config) error {
 
 	slog.Info("Starting fakediscord", "version", Version)
 
-	generate(c)
+	if err := generate(c); err != nil {
+		return err
+	}
 
-	return serve(ctx)
+	return serve(ctx, addr)
 }
 
 // generate generates resources based on the config provided, such as setting up users and guilds from a provided
 // YAML file
-func generate(c config.Config) {
+func generate(c config.Config) error {
 	users := []*discordgo.User{}
 	for _, user := range c.Users {
 		u := builders.NewUserFromConfig(user).Build()
@@ -54,14 +57,15 @@ func generate(c config.Config) {
 
 		slog.Info("Creating test guild", "name", g.Name, "id", g.ID)
 
-		err := storage.State.GuildAdd(g)
-		if err != nil {
-			panic(err)
+		if err := storage.State.GuildAdd(g); err != nil {
+			return fmt.Errorf("add guild %q: %w", g.Name, err)
 		}
 	}
+
+	return nil
 }
 
-func serve(ctx context.Context) error {
+func serve(ctx context.Context, addr string) error {
 	router := gin.Default()
 
 	// register a shim to override the websocket
@@ -71,21 +75,25 @@ func serve(ctx context.Context) error {
 	api.Configure(router.Group("api/:version"))
 
 	s := &http.Server{
-		Addr:         ":8080",
+		Addr:         addr,
 		Handler:      router,
 		ReadTimeout:  15 * time.Second,
 		WriteTimeout: 15 * time.Second,
 		IdleTimeout:  60 * time.Second,
 	}
 
+	errs := make(chan error, 1)
 	go func() {
-		if err := s.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
-			slog.Error("listen", slog.String("err", err.Error()))
-			os.Exit(1)
-		}
+		slog.Info("Listening", "addr", addr)
+		errs <- s.ListenAndServe()
 	}()
 
-	<-ctx.Done()
+	select {
+	case err := <-errs:
+		return fmt.Errorf("listen: %w", err)
+	case <-ctx.Done():
+	}
+
 	slog.Info("Shutting down server...")
 
 	// Create a new context for shutdown with a grace period

@@ -34,7 +34,7 @@ func setup() {
 	c := readConfig()
 
 	go func() {
-		if err := fakediscord.Run(context.Background(), c); err != nil {
+		if err := fakediscord.Run(context.Background(), ":8080", c); err != nil {
 			panic(err)
 		}
 	}()
