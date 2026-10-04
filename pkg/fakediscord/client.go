@@ -52,6 +52,7 @@ func (c *Client) Interaction(i *discordgo.InteractionCreate) (*discordgo.Interac
 	if err != nil {
 		return nil, fmt.Errorf("failed to send interaction: %w", err)
 	}
+	defer res.Body.Close()
 
 	if res.StatusCode != http.StatusCreated {
 		if res.StatusCode == http.StatusBadRequest || res.StatusCode == http.StatusNotFound {
