@@ -213,8 +213,6 @@ func (s *MessageStage) we_listen_for_message_reaction_events() *MessageStage {
 }
 
 func (s *MessageStage) a_message_reaction_add_event_should_have_been_received_with_id_and_name(id, name string) {
-	// todo fix test
-	s.t.Skip("concurrency issue -- events are not received consistently")
 	s.require.Eventually(func() bool {
 		s.mu.Lock()
 		adds := s.adds
@@ -230,8 +228,6 @@ func (s *MessageStage) a_message_reaction_add_event_should_have_been_received_wi
 }
 
 func (s *MessageStage) a_message_reaction_remove_event_should_have_been_received_with_id_and_name(id, name string) {
-	// todo fix test
-	s.t.Skip("concurrency issue -- events are not received consistently")
 	s.require.Eventually(func() bool {
 		s.mu.Lock()
 		removes := s.removes

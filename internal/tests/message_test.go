@@ -70,10 +70,10 @@ func TestMessage_React_CustomEmoji(t *testing.T) {
 		we_listen_for_message_reaction_events().and()
 
 	when.
-		the_message_is_reacted_to_with("custom_id:cheese")
+		the_message_is_reacted_to_with("cheese:custom_id")
 
 	then.
-		the_message_should_have_n_reactions_to_emoji(1, "custom_id:cheese").and().
+		the_message_should_have_n_reactions_to_emoji(1, "cheese:custom_id").and().
 		a_message_reaction_add_event_should_have_been_received_with_id_and_name("custom_id", "cheese")
 }
 
@@ -84,13 +84,13 @@ func TestMessage_React_CustomEmojiDelete(t *testing.T) {
 		a_message().and().
 		the_message_is_sent().and().
 		we_listen_for_message_reaction_events().and().
-		the_message_is_reacted_to_with("custom_id:cheese")
+		the_message_is_reacted_to_with("cheese:custom_id")
 
 	when.
-		the_message_reaction_is_removed("custom_id:cheese")
+		the_message_reaction_is_removed("cheese:custom_id")
 
 	then.
-		the_message_should_have_n_reactions_to_emoji(0, "custom_id:cheese").and().
+		the_message_should_have_n_reactions_to_emoji(0, "cheese:custom_id").and().
 		a_message_reaction_remove_event_should_have_been_received_with_id_and_name("custom_id", "cheese")
 }
 
