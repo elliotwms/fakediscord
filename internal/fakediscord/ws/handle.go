@@ -1,6 +1,7 @@
 package ws
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -18,6 +19,7 @@ var Connections = connpool.New(slog.Default())
 // https://discord.com/developers/docs/topics/opcodes-and-status-codes#gateway-gateway-opcodes
 const (
 	opHeartbeat    = 1
+	opIdentify     = 2
 	opHello        = 10
 	opHeartbeatACK = 11
 )
@@ -70,17 +72,12 @@ func establishConnection(c *connpool.Conn) (*discordgo.User, error) {
 
 	slog.Debug("Waiting for identify")
 
-	// only the token is needed from the identify payload. discordgo.Identify is not used as it does not round-trip
-	// (e.g. presence.game.created_at is sent as a string but unmarshalled as an int64)
-	i := &struct {
-		Token string `json:"token"`
-	}{}
-
-	if err = c.ReadJSON(&Event{Data: i}); err != nil {
-		return nil, fmt.Errorf("read identify: %w", err)
+	token, err := readIdentify(c)
+	if err != nil {
+		return nil, err
 	}
 
-	u, err := authUser(i.Token)
+	u, err := authUser(token)
 	if err != nil {
 		return nil, fmt.Errorf("authenticate: %w", err)
 	}
@@ -94,6 +91,42 @@ func establishConnection(c *connpool.Conn) (*discordgo.User, error) {
 	}
 
 	return u, nil
+}
+
+// readIdentify waits for the identify payload and returns its token. Heartbeats sent before identifying are
+// acknowledged, and any other payload is rejected
+func readIdentify(c *connpool.Conn) (string, error) {
+	for {
+		var e struct {
+			Operation int             `json:"op"`
+			Data      json.RawMessage `json:"d"`
+		}
+
+		if err := c.ReadJSON(&e); err != nil {
+			return "", fmt.Errorf("read identify: %w", err)
+		}
+
+		switch e.Operation {
+		case opHeartbeat:
+			if err := c.WriteJSON(Event{Operation: opHeartbeatACK}); err != nil {
+				return "", err
+			}
+		case opIdentify:
+			// only the token is needed from the identify payload. discordgo.Identify is not used as it does not
+			// round-trip (e.g. presence.game.created_at is sent as a string but unmarshalled as an int64)
+			var i struct {
+				Token string `json:"token"`
+			}
+			if err := json.Unmarshal(e.Data, &i); err != nil {
+				return "", fmt.Errorf("read identify: %w", err)
+			}
+
+			return i.Token, nil
+		default:
+			// resuming (op 6) is not supported, so clients must identify
+			return "", fmt.Errorf("expected identify (op %d), received op %d", opIdentify, e.Operation)
+		}
+	}
 }
 
 func authUser(token string) (u *discordgo.User, err error) {
