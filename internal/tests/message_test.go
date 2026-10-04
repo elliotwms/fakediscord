@@ -31,6 +31,58 @@ func TestMessage_Pin(t *testing.T) {
 		the_message_has_been_pinned()
 }
 
+func TestMessage_PinTwice(t *testing.T) {
+	given, when, then := NewMessageStage(t)
+
+	given.
+		a_message().and().
+		the_message_is_sent()
+
+	when.
+		the_message_is_pinned().and().
+		the_message_is_pinned_again()
+
+	then.
+		the_message_should_be_pinned_once()
+}
+
+func TestMessage_Unpin(t *testing.T) {
+	given, when, then := NewMessageStage(t)
+
+	given.
+		a_message().and().
+		the_message_is_sent().and().
+		the_message_is_pinned()
+
+	when.
+		the_message_is_unpinned()
+
+	then.
+		the_message_should_not_be_pinned()
+}
+
+func TestMessage_PinnedThenDeleted(t *testing.T) {
+	given, when, then := NewMessageStage(t)
+
+	given.
+		a_message().and().
+		the_message_is_sent().and().
+		the_message_is_pinned()
+
+	when.
+		the_message_is_deleted()
+
+	then.
+		the_message_should_not_be_pinned()
+}
+
+func TestMessage_PinMissing(t *testing.T) {
+	_, _, then := NewMessageStage(t)
+
+	then.
+		pinning_a_missing_message_should_fail()
+}
+
 func TestMessage_React(t *testing.T) {
 	given, when, then := NewMessageStage(t)
 
@@ -128,6 +180,21 @@ func TestMessage_WithImageAttachment(t *testing.T) {
 	then.
 		the_message_should_have_an_attachment().and().
 		the_first_attachment_should_have_a_resolution_set()
+}
+
+func TestMessage_AttachmentSize(t *testing.T) {
+	given, when, then := NewMessageStage(t)
+
+	given.
+		a_message().and().
+		an_attachment("hello.txt", "text/plain")
+
+	when.
+		the_message_is_sent()
+
+	then.
+		the_message_should_have_an_attachment().and().
+		the_first_attachment_should_have_its_size_set("hello.txt")
 }
 
 func TestMessage_WithLink(t *testing.T) {

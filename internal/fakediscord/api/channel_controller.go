@@ -31,6 +31,7 @@ func channelController(r *gin.RouterGroup) {
 
 	r.GET("/:channel/pins", getChannelPins)
 	r.PUT("/:channel/pins/:message", putChannelPin)
+	r.DELETE("/:channel/pins/:message", deleteChannelPin)
 
 	r.POST("/:channel/messages", createChannelMessage)
 	r.GET("/:channel/messages/:message", getChannelMessage)
@@ -76,11 +77,15 @@ func deleteChannel(c *gin.Context) {
 
 // https://discord.com/developers/docs/resources/channel#get-pinned-messages
 func getChannelPins(c *gin.Context) {
-	var messages []*discordgo.Message
+	messages := []*discordgo.Message{}
 
 	pins := storage.Pins.Load(c.Param("channel"))
 	for _, pin := range pins {
 		message, err := storage.State.Message(c.Param("channel"), pin)
+		if errors.Is(err, discordgo.ErrStateNotFound) {
+			// the pinned message has since been deleted
+			continue
+		}
 		if err != nil {
 			handleStateErr(c, err)
 			return
@@ -93,26 +98,48 @@ func getChannelPins(c *gin.Context) {
 
 // https://discord.com/developers/docs/resources/channel#pin-message
 func putChannelPin(c *gin.Context) {
-	channel, err := storage.State.Channel(c.Param("channel"))
+	m, err := storage.State.Message(c.Param("channel"), c.Param("message"))
 	if err != nil {
 		handleStateErr(c, err)
 		return
 	}
 
-	storage.Pins.Store(c.Param("channel"), c.Param("message"))
+	storage.Pins.Store(m.ChannelID, m.ID)
 
-	_, err = ws.Connections.Broadcast("CHANNEL_PINS_UPDATE", discordgo.ChannelPinsUpdate{
-		LastPinTimestamp: time.Now().String(),
-		ChannelID:        c.Param("channel"),
-		GuildID:          channel.GuildID,
-	})
-
-	if err != nil {
+	if err := broadcastPinsUpdate(m); err != nil {
 		_ = c.AbortWithError(http.StatusInternalServerError, err)
 		return
 	}
 
-	c.Status(http.StatusCreated)
+	c.Status(http.StatusNoContent)
+}
+
+// https://discord.com/developers/docs/resources/channel#unpin-message
+func deleteChannelPin(c *gin.Context) {
+	m, err := storage.State.Message(c.Param("channel"), c.Param("message"))
+	if err != nil {
+		handleStateErr(c, err)
+		return
+	}
+
+	storage.Pins.Delete(m.ChannelID, m.ID)
+
+	if err := broadcastPinsUpdate(m); err != nil {
+		_ = c.AbortWithError(http.StatusInternalServerError, err)
+		return
+	}
+
+	c.Status(http.StatusNoContent)
+}
+
+func broadcastPinsUpdate(m *discordgo.Message) error {
+	_, err := ws.Connections.Broadcast("CHANNEL_PINS_UPDATE", discordgo.ChannelPinsUpdate{
+		LastPinTimestamp: time.Now().Format(time.RFC3339),
+		ChannelID:        m.ChannelID,
+		GuildID:          m.GuildID,
+	})
+
+	return err
 }
 
 func getChannelMessage(c *gin.Context) {
@@ -253,17 +280,21 @@ func buildAttachments(channelID string, files []*discordgo.File) []*discordgo.Me
 			ProxyURL:    url,
 			Filename:    f.Name,
 			ContentType: f.ContentType,
-			Size:        1,
+		}
+
+		if r, ok := f.Reader.(interface{ Size() int64 }); ok {
+			attachment.Size = int(r.Size())
 		}
 
 		if isImage(f.ContentType) {
 			config, _, err := image.DecodeConfig(f.Reader)
 			if err != nil {
-				return nil
+				// keep the attachment, but without dimensions
+				slog.Warn("Could not decode image attachment", "filename", f.Name, "err", err)
+			} else {
+				attachment.Width = config.Width
+				attachment.Height = config.Height
 			}
-
-			attachment.Width = config.Width
-			attachment.Height = config.Height
 		}
 
 		attachments = append(attachments, attachment)
@@ -297,16 +328,27 @@ func deleteChannelMessage(c *gin.Context) {
 		return
 	}
 
-	c.Status(http.StatusOK)
+	c.Status(http.StatusNoContent)
 }
 
 // https://discord.com/developers/docs/resources/message#get-reactions
 func getMessageReaction(c *gin.Context) {
+	if _, err := storage.State.Message(c.Param("channel"), c.Param("message")); err != nil {
+		handleStateErr(c, err)
+		return
+	}
+
 	vs, _ := storage.Reactions.LoadMessageReaction(c.Param("message"), c.Param("reaction"))
 
-	var users []*discordgo.User
+	users := make([]*discordgo.User, 0, len(vs))
 	for _, v := range vs {
-		users = append(users, &discordgo.User{ID: v})
+		u := &discordgo.User{ID: v}
+		if stored, ok := storage.Users.Load(v); ok {
+			su := stored.(discordgo.User)
+			su.Token = ""
+			u = &su
+		}
+		users = append(users, u)
 	}
 
 	c.JSON(http.StatusOK, users)
@@ -316,6 +358,11 @@ func getMessageReaction(c *gin.Context) {
 func putMessageReaction(c *gin.Context) {
 	channel, err := storage.State.Channel(c.Param("channel"))
 	if err != nil {
+		handleStateErr(c, err)
+		return
+	}
+
+	if _, err := storage.State.Message(channel.ID, c.Param("message")); err != nil {
 		handleStateErr(c, err)
 		return
 	}
@@ -389,6 +436,11 @@ func getUserByID(c *gin.Context, id string) (*discordgo.User, bool) {
 func deleteMessageReaction(c *gin.Context) {
 	channel, err := storage.State.Channel(c.Param("channel"))
 	if err != nil {
+		handleStateErr(c, err)
+		return
+	}
+
+	if _, err := storage.State.Message(channel.ID, c.Param("message")); err != nil {
 		handleStateErr(c, err)
 		return
 	}
