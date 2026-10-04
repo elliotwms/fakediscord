@@ -33,7 +33,7 @@ func TestRequest_MalformedJSON(t *testing.T) {
 
 			res, err := http.DefaultClient.Do(req)
 			require.NoError(t, err)
-			defer res.Body.Close()
+			defer func() { _ = res.Body.Close() }()
 
 			require.Equal(t, http.StatusBadRequest, res.StatusCode)
 		})
@@ -43,7 +43,7 @@ func TestRequest_MalformedJSON(t *testing.T) {
 func TestRequest_MissingAuthorization(t *testing.T) {
 	res, err := http.Get("http://localhost:8080/api/v9/guilds/1")
 	require.NoError(t, err)
-	defer res.Body.Close()
+	defer func() { _ = res.Body.Close() }()
 
 	require.Equal(t, http.StatusUnauthorized, res.StatusCode)
 }
@@ -55,7 +55,7 @@ func TestApplicationCommands_EmptyListIsNotNull(t *testing.T) {
 
 	res, err := http.DefaultClient.Do(req)
 	require.NoError(t, err)
-	defer res.Body.Close()
+	defer func() { _ = res.Body.Close() }()
 
 	bs, err := io.ReadAll(res.Body)
 	require.NoError(t, err)

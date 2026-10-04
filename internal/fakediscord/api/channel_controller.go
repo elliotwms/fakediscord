@@ -224,7 +224,7 @@ func parseMessageSend(c *gin.Context) (*discordgo.MessageSend, error) {
 
 			// Read file contents into buffer and close the file handle
 			data, err := io.ReadAll(open)
-			open.Close()
+			_ = open.Close()
 			if err != nil {
 				return nil, err
 			}

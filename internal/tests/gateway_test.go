@@ -15,7 +15,7 @@ func TestGateway_URLUsesRequestHost(t *testing.T) {
 
 	res, err := http.DefaultClient.Do(req)
 	require.NoError(t, err)
-	defer res.Body.Close()
+	defer func() { _ = res.Body.Close() }()
 
 	require.Equal(t, http.StatusOK, res.StatusCode)
 
