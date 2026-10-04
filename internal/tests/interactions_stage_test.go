@@ -102,20 +102,24 @@ func (s *InteractionsStage) the_interaction_callback_is_triggered_with_a_message
 	return s
 }
 
-func (s *InteractionsStage) a_message_should_have_been_posted_in_the_channel() {
+func (s *InteractionsStage) a_message_should_have_been_posted_in_the_channel() *InteractionsStage {
 	res, err := s.session.InteractionResponse(s.interaction.Interaction)
 	s.require.NoError(err)
 
 	s.require.Equal(res.Content, "Responding to interaction")
+
+	return s
 }
 
-func (s *InteractionsStage) the_interaction_message_is_updated() {
+func (s *InteractionsStage) the_interaction_message_is_updated() *InteractionsStage {
 	content := "Responding to interaction"
 	_, err := s.session.InteractionResponseEdit(s.interaction.Interaction, &discordgo.WebhookEdit{
 		Content: &content,
 	})
 
 	s.require.NoError(err)
+
+	return s
 }
 
 func (s *InteractionsStage) an_interaction() *InteractionsStage {
@@ -164,4 +168,42 @@ func (s *InteractionsStage) the_error_should_contain(contains string) *Interacti
 
 func (s *InteractionsStage) the_interaction_has(modifier func(i *discordgo.InteractionCreate)) {
 	modifier(s.interactionCreate)
+}
+
+func (s *InteractionsStage) the_response_should_be_authored_by_the_bot() *InteractionsStage {
+	res, err := s.session.InteractionResponse(s.interaction.Interaction)
+	s.require.NoError(err)
+
+	s.require.NotNil(res.Author)
+	s.require.Equal(s.session.State.User.ID, res.Author.ID)
+
+	return s
+}
+
+func (s *InteractionsStage) the_response_should_not_be_loading() *InteractionsStage {
+	res, err := s.session.InteractionResponse(s.interaction.Interaction)
+	s.require.NoError(err)
+
+	s.require.Zero(res.Flags & discordgo.MessageFlagsLoading)
+
+	return s
+}
+
+func (s *InteractionsStage) the_interaction_should_have_an_invoking_member() *InteractionsStage {
+	s.require.NotNil(s.interaction.Member)
+	s.require.NotNil(s.interaction.Member.User)
+	s.require.Equal(s.session.State.User.ID, s.interaction.Member.User.ID)
+
+	return s
+}
+
+func (s *InteractionsStage) the_interaction_callback_is_triggered_with_the_wrong_id() *InteractionsStage {
+	i := *s.interaction.Interaction
+	i.ID = snowflake.Generate().String()
+
+	s.err = s.session.InteractionRespond(&i, &discordgo.InteractionResponse{
+		Type: discordgo.InteractionResponseDeferredChannelMessageWithSource,
+	})
+
+	return s
 }

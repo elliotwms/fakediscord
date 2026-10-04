@@ -61,10 +61,18 @@ func createInteraction(c *gin.Context) {
 	c.JSON(http.StatusCreated, interaction)
 }
 
-// setInteractionDefaults sets some default values when creating a new interaction
+// setInteractionDefaults sets some default values when creating a new interaction. If no invoking user is provided,
+// the authenticated caller is used as the invoking guild member
 func setInteractionDefaults(interaction *discordgo.Interaction, u discordgo.User) {
 	if interaction.ID == "" {
 		interaction.ID = snowflake.Generate().String()
+	}
+
+	if interaction.Member == nil && interaction.User == nil {
+		interaction.Member = &discordgo.Member{
+			GuildID: interaction.GuildID,
+			User:    &u,
+		}
 	}
 
 	if interaction.Token == "" {
@@ -165,6 +173,17 @@ func postCallback(c *gin.Context) {
 	}
 	i := v.(discordgo.Interaction)
 
+	if i.ID != id {
+		c.AbortWithStatus(http.StatusNotFound)
+		return
+	}
+
+	h, ok := interactionHandlers[res.Type]
+	if !ok {
+		c.AbortWithStatus(http.StatusNotImplemented)
+		return
+	}
+
 	// only allow callbacks once
 	_, ok = storage.InteractionCallbacks.LoadOrStore(id, struct{}{})
 	if ok {
@@ -172,12 +191,6 @@ func postCallback(c *gin.Context) {
 			Message: "Interaction has already been acknowledged.",
 			Code:    discordgo.ErrCodeInteractionHasAlreadyBeenAcknowledged,
 		})
-		return
-	}
-
-	h, ok := interactionHandlers[res.Type]
-	if !ok {
-		c.AbortWithStatus(http.StatusNotImplemented)
 		return
 	}
 
@@ -204,7 +217,17 @@ func handlePong(*discordgo.Interaction, *discordgo.InteractionResponse) (int, er
 }
 
 func handleMessageInteractionResponse(i *discordgo.Interaction, res *discordgo.InteractionResponse) (statusCode int, err error) {
-	m := builders.NewMessage(i.User, i.ChannelID, i.GuildID).
+	if res.Data == nil {
+		return http.StatusBadRequest, nil
+	}
+
+	// the response is authored by the application's bot user, not the user who invoked the interaction
+	u, ok := appUser(i)
+	if !ok {
+		return http.StatusNotFound, nil
+	}
+
+	m := builders.NewMessage(u, i.ChannelID, i.GuildID).
 		WithType(discordgo.MessageTypeReply).
 		WithContent(res.Data.Content).
 		WithEmbeds(res.Data.Embeds).
@@ -223,13 +246,12 @@ func handleMessageInteractionResponse(i *discordgo.Interaction, res *discordgo.I
 }
 
 func emitLoadingMessage(i *discordgo.Interaction, _ *discordgo.InteractionResponse) (statusCode int, err error) {
-	v, ok := storage.Users.Load(i.AppID)
+	u, ok := appUser(i)
 	if !ok {
 		return http.StatusNotFound, nil
 	}
-	u := v.(discordgo.User)
 
-	m := builders.NewMessage(&u, i.ChannelID, i.GuildID).
+	m := builders.NewMessage(u, i.ChannelID, i.GuildID).
 		WithType(discordgo.MessageTypeReply).
 		WithFlags(discordgo.MessageFlagsLoading).
 		Build()
@@ -243,4 +265,15 @@ func emitLoadingMessage(i *discordgo.Interaction, _ *discordgo.InteractionRespon
 	}
 
 	return http.StatusNoContent, nil
+}
+
+// appUser loads the bot user for the application which received the interaction
+func appUser(i *discordgo.Interaction) (*discordgo.User, bool) {
+	v, ok := storage.Users.Load(i.AppID)
+	if !ok {
+		return nil, false
+	}
+	u := v.(discordgo.User)
+
+	return &u, true
 }
