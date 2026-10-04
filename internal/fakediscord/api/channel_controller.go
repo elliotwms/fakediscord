@@ -191,7 +191,7 @@ func parseMessageSend(c *gin.Context) (*discordgo.MessageSend, error) {
 
 	switch c.ContentType() {
 	case "application/json":
-		if err := c.BindJSON(&messageSend); err != nil {
+		if err := c.ShouldBindJSON(&messageSend); err != nil {
 			return nil, err
 		}
 	case "multipart/form-data":

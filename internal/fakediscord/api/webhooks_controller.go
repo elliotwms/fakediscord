@@ -53,7 +53,7 @@ func getResponse(c *gin.Context) {
 
 func patchResponse(c *gin.Context) {
 	edit := &discordgo.WebhookEdit{}
-	err := c.BindJSON(edit)
+	err := c.ShouldBindJSON(edit)
 	if err != nil {
 		_ = c.AbortWithError(http.StatusBadRequest, err)
 		return

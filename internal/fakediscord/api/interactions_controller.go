@@ -30,7 +30,7 @@ func createInteraction(c *gin.Context) {
 	}
 
 	interaction := &discordgo.Interaction{}
-	if err := c.BindJSON(interaction); err != nil {
+	if err := c.ShouldBindJSON(interaction); err != nil {
 		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
@@ -157,7 +157,8 @@ func validateApplicationCommandData(interaction *discordgo.Interaction, errs []e
 func postCallback(c *gin.Context) {
 	res := &discordgo.InteractionResponse{}
 
-	if err := c.BindJSON(res); err != nil {
+	if err := c.ShouldBindJSON(res); err != nil {
+		_ = c.AbortWithError(http.StatusBadRequest, err)
 		return
 	}
 

@@ -66,7 +66,7 @@ func putCommands(c *gin.Context) {
 
 	commands := make([]*discordgo.ApplicationCommand, 0)
 
-	if err := c.BindJSON(&commands); err != nil {
+	if err := c.ShouldBindJSON(&commands); err != nil {
 		_ = c.AbortWithError(http.StatusBadRequest, err)
 		return
 	}
@@ -107,7 +107,7 @@ func postCommand(c *gin.Context) {
 		GuildID:       c.Param("guild"),
 	}
 
-	if err := c.BindJSON(command); err != nil {
+	if err := c.ShouldBindJSON(command); err != nil {
 		_ = c.AbortWithError(http.StatusBadRequest, err)
 		return
 	}
