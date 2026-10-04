@@ -3,7 +3,6 @@ package ws
 import (
 	"errors"
 	"fmt"
-	"log"
 	"log/slog"
 	"strings"
 	"time"
@@ -69,7 +68,7 @@ func establishConnection(c *connpool.Conn) (*discordgo.User, error) {
 		return nil, err
 	}
 
-	log.Print("waiting for identify")
+	slog.Debug("Waiting for identify")
 
 	// only the token is needed from the identify payload. discordgo.Identify is not used as it does not round-trip
 	// (e.g. presence.game.created_at is sent as a string but unmarshalled as an int64)
@@ -114,7 +113,7 @@ func handleMessage(c *connpool.Conn) error {
 		return err
 	}
 
-	log.Printf("read message %d, %v", e.Operation, e.Data)
+	slog.Debug("Read gateway message", "op", e.Operation)
 
 	if e.Operation == opHeartbeat {
 		return c.WriteJSON(Event{Operation: opHeartbeatACK})
