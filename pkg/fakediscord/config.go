@@ -2,14 +2,16 @@ package fakediscord
 
 import "github.com/bwmarrin/discordgo"
 
+// Configure points discordgo at fakediscord by overriding its package-level endpoints.
+//
+// Deprecated: Configure only overrides a subset of discordgo's endpoints, and applies to every session in the process.
+// Use ConfigureSession for each session instead, and NewClient(token).WithBaseURL(baseURL) for the client.
 func Configure(baseURL string) {
 	overrideEndPoints(baseURL)
 }
 
 // overrideEndpoints overrides the package global endpoints in bwmarrin/discordgo, in order to enable overriding the
 // Discord API URL with the fakediscord base URL
-//
-// As fakediscord grows we will need to add more endpoints here, or come up with a better way to override the base URL
 func overrideEndPoints(baseURL string) {
 	discordgo.EndpointDiscord = baseURL
 	discordgo.EndpointAPI = discordgo.EndpointDiscord + "api/v" + discordgo.APIVersion + "/"

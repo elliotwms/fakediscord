@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"strings"
 
 	"github.com/bwmarrin/discordgo"
 )
@@ -16,15 +17,11 @@ type Client struct {
 	token   string
 }
 
+// NewClient creates a client for fakediscord's internal endpoints. Set the fakediscord URL with WithBaseURL (or the
+// deprecated Configure)
 func NewClient(token string) *Client {
-	endpoint := discordgo.EndpointDiscord
-
-	if endpoint == "https://discord.com/" {
-		panic("fakediscord not configured. Call fakediscord.Configure(baseURL) before configuring client")
-	}
-
 	return &Client{
-		baseURL: endpoint,
+		baseURL: discordgo.EndpointDiscord,
 		http:    http.DefaultClient,
 		token:   token,
 	}
@@ -36,7 +33,11 @@ func (c *Client) WithHTTPClient(httpClient *http.Client) *Client {
 	return c
 }
 
+// WithBaseURL sets the URL of the fakediscord instance, e.g. "http://localhost:8080/"
 func (c *Client) WithBaseURL(baseURL string) *Client {
+	if !strings.HasSuffix(baseURL, "/") {
+		baseURL += "/"
+	}
 	c.baseURL = baseURL
 
 	return c
@@ -81,6 +82,10 @@ func (c *Client) Interaction(i *discordgo.InteractionCreate) (*discordgo.Interac
 }
 
 func (c *Client) do(method string, path string, bs []byte) (*http.Response, error) {
+	if c.baseURL == "https://"+discordHost+"/" {
+		return nil, errors.New("fakediscord base URL not set: use WithBaseURL")
+	}
+
 	u := c.baseURL + "api/v" + discordgo.APIVersion + "/" + path
 	req, err := http.NewRequest(method, u, bytes.NewBuffer(bs))
 	if err != nil {

@@ -47,23 +47,41 @@ The following environment variables can be set:
 
 The gateway URL returned by `GET /gateway` uses the host the request was made to, so `fakediscord` can be reached by a docker-compose service name (e.g. `http://fakediscord:8080/`) or a remapped port.
 
-`fakediscord` provides a Go client as a convenience wrapper for internal endpoints, as well as a shim for discordgo to allow you to override the endpoints, which can be found in `pkg/fakediscord`.
+`fakediscord` provides a Go client as a convenience wrapper for internal endpoints, as well as helpers to point discordgo (or any `http.Client`) at `fakediscord`, which can be found in `pkg/fakediscord`.
 
-Override the Discord Base URL to `fakediscord`'s, then proceed to use your client as normal:
+Point your session at `fakediscord` before opening it, then use it as normal:
 
 ```go
 package main
 
-import "github.com/elliotwms/fakediscord/pkg/fakediscord"
+import (
+	"github.com/bwmarrin/discordgo"
+	"github.com/elliotwms/fakediscord/pkg/fakediscord"
+)
 
-func main() { 
-	// override discordgo URLs (note the trailing slash)
-	fakediscord.Configure("http://localhost:8080/")
-	
+const baseURL = "http://localhost:8080/"
+
+func main() {
+	session, _ := discordgo.New("Bot your-bot-token")
+
+	// send the session's requests (and so its gateway connection) to fakediscord
+	if err := fakediscord.ConfigureSession(session, baseURL); err != nil {
+		panic(err)
+	}
+
 	// Client for internal endpoints (e.g. interactions)
-	c := fakediscord.NewClient("your-bot-token")
+	c := fakediscord.NewClient("your-bot-token").WithBaseURL(baseURL)
 }
 ```
+
+`ConfigureSession` wraps the session's HTTP client with `fakediscord.Transport`, which sends any request addressed to `discord.com` to `fakediscord` instead. If your bot calls the Discord API without discordgo, you can use `Transport` with your own `http.Client`:
+
+```go
+u, _ := url.Parse("http://localhost:8080/")
+client := &http.Client{Transport: fakediscord.Transport(u, nil)}
+```
+
+`fakediscord.Configure(baseURL)`, which overrides discordgo's package-level endpoints, is deprecated. It only covers some endpoints, and applies to every session in the process.
 
 ### Authentication
 
@@ -172,5 +190,5 @@ Check out how the following projects use `fakediscord` for inspiration:
 ### [Pinbot](https://github.com/elliotwms/pinbot/tree/master/tests)
 
 * Docker [Compose](https://github.com/elliotwms/pinbot/blob/master/compose.yaml) contains Pinbot config, including the bot user in [fakediscord.yaml](https://github.com/elliotwms/pinbot/blob/master/fakediscord.yaml)
-* [TestMain](https://github.com/elliotwms/pinbot/blob/20debf13a3dff8e58b7d61ec5e04c18c1542be3d/tests/setup_test.go#L21) calls `fakediscord.Configure` to set base URLs etc, sets up the client, creates a test guild for the run and opens a general session for the test suite
+* [TestMain](https://github.com/elliotwms/pinbot/blob/20debf13a3dff8e58b7d61ec5e04c18c1542be3d/tests/setup_test.go#L21) calls `fakediscord.Configure` (now deprecated in favour of `ConfigureSession`) to set base URLs etc, sets up the client, creates a test guild for the run and opens a general session for the test suite
 * Individual tests then create channels in the test guild to execute their tests within ([example](https://github.com/elliotwms/pinbot/blob/20debf13a3dff8e58b7d61ec5e04c18c1542be3d/tests/pin_test.go#L7))

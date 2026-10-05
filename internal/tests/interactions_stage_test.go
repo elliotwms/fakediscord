@@ -61,7 +61,7 @@ func (s *InteractionsStage) the_interaction_is_triggered() *InteractionsStage {
 		s.a_valid_interaction()
 	}
 
-	s.interaction, s.err = fakediscord.NewClient(botToken).Interaction(s.interactionCreate)
+	s.interaction, s.err = fakediscord.NewClient(botToken).WithBaseURL(baseURL).Interaction(s.interactionCreate)
 
 	return s
 }
