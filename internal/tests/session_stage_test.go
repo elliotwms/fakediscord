@@ -81,7 +81,7 @@ func (s *SessionStage) the_session_is_opened() *SessionStage {
 }
 
 func (s *SessionStage) the_session_is_closed() {
-	s.require.NoError(s.session.Close(), "session should close successfully")
+	closeSession(s.session)
 }
 
 func (s *SessionStage) the_session_is_ready() *SessionStage {

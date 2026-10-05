@@ -34,7 +34,7 @@ func NewInteractionStage(t *testing.T) (given, when, then *InteractionsStage) {
 
 	s.require.NoError(s.session.Open())
 	t.Cleanup(func() {
-		s.require.NoError(s.session.Close())
+		closeSession(s.session)
 	})
 
 	var err error

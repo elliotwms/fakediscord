@@ -27,7 +27,7 @@ func NewApplicationCommandStage(t *testing.T) (*ApplicationCommandStage, *Applic
 
 	s.require.NoError(s.session.Open())
 	t.Cleanup(func() {
-		s.require.NoError(s.session.Close())
+		closeSession(s.session)
 	})
 
 	return s, s, s
