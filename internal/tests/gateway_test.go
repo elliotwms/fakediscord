@@ -38,3 +38,16 @@ func TestGateway_Bot(t *testing.T) {
 	require.Equal(t, 1, g.SessionStartLimit.MaxConcurrency)
 	require.NotZero(t, g.SessionStartLimit.Remaining)
 }
+
+func TestGateway_TrailingSlashRedirects(t *testing.T) {
+	req, err := http.NewRequest(http.MethodGet, "http://localhost:8080/api/v9/gateway/", nil)
+	require.NoError(t, err)
+	req.Header.Set("Authorization", "Bot "+botToken)
+
+	res, err := http.DefaultClient.Do(req)
+	require.NoError(t, err)
+	defer func() { _ = res.Body.Close() }()
+
+	require.Equal(t, http.StatusOK, res.StatusCode)
+	require.Equal(t, "/api/v9/gateway", res.Request.URL.Path, "should have been redirected")
+}

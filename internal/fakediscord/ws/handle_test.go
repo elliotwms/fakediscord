@@ -61,12 +61,6 @@ func dial(t *testing.T, url string) *websocket.Conn {
 	return c
 }
 
-type rawEvent struct {
-	Operation int             `json:"op"`
-	Type      string          `json:"t"`
-	Data      json.RawMessage `json:"d"`
-}
-
 func readHello(t *testing.T, c *websocket.Conn) helloOp {
 	t.Helper()
 

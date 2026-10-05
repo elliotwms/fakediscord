@@ -282,7 +282,7 @@ func buildAttachments(channelID string, files []*discordgo.File) []*discordgo.Me
 			ContentType: f.ContentType,
 		}
 
-		if r, ok := f.Reader.(interface{ Size() int64 }); ok {
+		if r, ok := f.Reader.(sizer); ok {
 			attachment.Size = int(r.Size())
 		}
 
@@ -301,6 +301,13 @@ func buildAttachments(channelID string, files []*discordgo.File) []*discordgo.Me
 	}
 
 	return attachments
+}
+
+// sizer is implemented by readers which know the total size of their content, such as the *bytes.Reader that
+// parseMessageSend wraps multipart uploads in. discordgo.File has no size field, so this is how an attachment's size
+// is found
+type sizer interface {
+	Size() int64
 }
 
 func isImage(contentType string) bool {
