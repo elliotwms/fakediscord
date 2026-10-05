@@ -3,9 +3,11 @@ package tests
 import (
 	"context"
 	"embed"
+	"errors"
 	"fmt"
 	"net/http"
 	"os"
+	"sync"
 	"testing"
 	"time"
 
@@ -26,7 +28,14 @@ var configDir embed.FS
 func TestMain(m *testing.M) {
 	setup()
 
-	m.Run()
+	code := m.Run()
+
+	if err := waitForSessionsToClose(); err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		code = 1
+	}
+
+	os.Exit(code)
 }
 
 func setup() {
@@ -94,11 +103,41 @@ func newOpenSession(t *testing.T, token string) (session *discordgo.Session, clo
 	}
 
 	return session, func() {
-		err = session.Close()
-		if err != nil {
-			t.Fatal(err)
-		}
+		closeSession(session)
 	}
+}
+
+// discordgo's Session.Close sleeps for a second after sending the close frame, waiting for the server to close the
+// connection. Closing sessions synchronously in each test's cleanup therefore adds a second to every test, so they
+// are closed in the background instead, and TestMain waits for them all to finish
+var (
+	closing     sync.WaitGroup
+	closeErrsMx sync.Mutex
+	closeErrs   []error
+)
+
+// closeSession closes the session in the background
+func closeSession(s *discordgo.Session) {
+	closing.Add(1)
+	go func() {
+		defer closing.Done()
+
+		if err := s.Close(); err != nil {
+			closeErrsMx.Lock()
+			closeErrs = append(closeErrs, fmt.Errorf("close session: %w", err))
+			closeErrsMx.Unlock()
+		}
+	}()
+}
+
+// waitForSessionsToClose waits for sessions closed with closeSession, and returns any errors from closing them
+func waitForSessionsToClose() error {
+	closing.Wait()
+
+	closeErrsMx.Lock()
+	defer closeErrsMx.Unlock()
+
+	return errors.Join(closeErrs...)
 }
 
 func setupGuild(t *testing.T, s *discordgo.Session, name string) (*discordgo.Guild, *discordgo.Channel, error) {

@@ -43,6 +43,7 @@ func NewMessageStage(t *testing.T) (given, then, when *MessageStage) {
 
 func (s *MessageStage) setup() {
 	s.require.NoError(s.session.Open())
+	s.t.Cleanup(func() { closeSession(s.session) })
 
 	var err error
 	s.guild, s.channel, err = setupGuild(s.t, s.session, "message")

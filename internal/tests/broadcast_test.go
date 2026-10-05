@@ -53,7 +53,7 @@ func TestBroadcast_MessageSentToMultipleConnections(t *testing.T) {
 	t.Cleanup(func() {
 		for _, s := range sessions {
 			if s != nil {
-				_ = s.Close()
+				closeSession(s)
 			}
 		}
 	})
