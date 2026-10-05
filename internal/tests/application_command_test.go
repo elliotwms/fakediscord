@@ -129,3 +129,38 @@ func TestApplicationCommand_Guild_Delete(t *testing.T) {
 	then.
 		an_error_should_be_returned()
 }
+
+func TestApplicationCommand_BulkOverwrite_OtherScopesUnaffected(t *testing.T) {
+	given, when, then := NewApplicationCommandStage(t)
+
+	given.
+		an_application_command().and().
+		the_command_is_created_globally()
+
+	when.
+		the_commands_are_overwritten_in_another_guild()
+
+	then.
+		no_error_should_be_returned()
+
+	when.
+		the_command_is_fetched()
+
+	then.
+		no_error_should_be_returned()
+}
+
+func TestApplicationCommand_Guild_Get_FromAnotherGuild(t *testing.T) {
+	given, when, then := NewApplicationCommandStage(t)
+
+	given.
+		a_guild().and().
+		an_application_command().and().
+		the_command_is_created_in_guild()
+
+	when.
+		the_command_is_fetched_from_another_guild()
+
+	then.
+		an_error_should_be_returned()
+}

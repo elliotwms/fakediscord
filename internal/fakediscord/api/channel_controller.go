@@ -1,11 +1,13 @@
 package api
 
 import (
+	"bytes"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"image"
-	"log"
+	"io"
+	"log/slog"
 	"net/http"
 	"regexp"
 	"strings"
@@ -29,6 +31,7 @@ func channelController(r *gin.RouterGroup) {
 
 	r.GET("/:channel/pins", getChannelPins)
 	r.PUT("/:channel/pins/:message", putChannelPin)
+	r.DELETE("/:channel/pins/:message", deleteChannelPin)
 
 	r.POST("/:channel/messages", createChannelMessage)
 	r.GET("/:channel/messages/:message", getChannelMessage)
@@ -74,11 +77,15 @@ func deleteChannel(c *gin.Context) {
 
 // https://discord.com/developers/docs/resources/channel#get-pinned-messages
 func getChannelPins(c *gin.Context) {
-	var messages []*discordgo.Message
+	messages := []*discordgo.Message{}
 
 	pins := storage.Pins.Load(c.Param("channel"))
 	for _, pin := range pins {
 		message, err := storage.State.Message(c.Param("channel"), pin)
+		if errors.Is(err, discordgo.ErrStateNotFound) {
+			// the pinned message has since been deleted
+			continue
+		}
 		if err != nil {
 			handleStateErr(c, err)
 			return
@@ -91,26 +98,48 @@ func getChannelPins(c *gin.Context) {
 
 // https://discord.com/developers/docs/resources/channel#pin-message
 func putChannelPin(c *gin.Context) {
-	channel, err := storage.State.Channel(c.Param("channel"))
+	m, err := storage.State.Message(c.Param("channel"), c.Param("message"))
 	if err != nil {
 		handleStateErr(c, err)
 		return
 	}
 
-	storage.Pins.Store(c.Param("channel"), c.Param("message"))
+	storage.Pins.Store(m.ChannelID, m.ID)
 
-	_, err = ws.Connections.Broadcast("CHANNEL_PINS_UPDATE", discordgo.ChannelPinsUpdate{
-		LastPinTimestamp: time.Now().String(),
-		ChannelID:        c.Param("channel"),
-		GuildID:          channel.GuildID,
-	})
-
-	if err != nil {
+	if err := broadcastPinsUpdate(m); err != nil {
 		_ = c.AbortWithError(http.StatusInternalServerError, err)
 		return
 	}
 
-	c.Status(http.StatusCreated)
+	c.Status(http.StatusNoContent)
+}
+
+// https://discord.com/developers/docs/resources/channel#unpin-message
+func deleteChannelPin(c *gin.Context) {
+	m, err := storage.State.Message(c.Param("channel"), c.Param("message"))
+	if err != nil {
+		handleStateErr(c, err)
+		return
+	}
+
+	storage.Pins.Delete(m.ChannelID, m.ID)
+
+	if err := broadcastPinsUpdate(m); err != nil {
+		_ = c.AbortWithError(http.StatusInternalServerError, err)
+		return
+	}
+
+	c.Status(http.StatusNoContent)
+}
+
+func broadcastPinsUpdate(m *discordgo.Message) error {
+	_, err := ws.Connections.Broadcast("CHANNEL_PINS_UPDATE", discordgo.ChannelPinsUpdate{
+		LastPinTimestamp: time.Now().Format(time.RFC3339),
+		ChannelID:        m.ChannelID,
+		GuildID:          m.GuildID,
+	})
+
+	return err
 }
 
 func getChannelMessage(c *gin.Context) {
@@ -162,7 +191,7 @@ func parseMessageSend(c *gin.Context) (*discordgo.MessageSend, error) {
 
 	switch c.ContentType() {
 	case "application/json":
-		if err := c.BindJSON(&messageSend); err != nil {
+		if err := c.ShouldBindJSON(&messageSend); err != nil {
 			return nil, err
 		}
 	case "multipart/form-data":
@@ -186,16 +215,24 @@ func parseMessageSend(c *gin.Context) (*discordgo.MessageSend, error) {
 		}
 
 		for s, headers := range form.File {
-			log.Printf("Parsing file %s", s)
+			slog.Info("Parsing file", "key", s)
 
 			open, err := headers[0].Open()
 			if err != nil {
 				return nil, err
 			}
+
+			// Read file contents into buffer and close the file handle
+			data, err := io.ReadAll(open)
+			_ = open.Close()
+			if err != nil {
+				return nil, err
+			}
+
 			file := &discordgo.File{
 				Name:        headers[0].Filename,
 				ContentType: headers[0].Header.Get("Content-Type"),
-				Reader:      open,
+				Reader:      bytes.NewReader(data),
 			}
 			messageSend.Files = append(messageSend.Files, file)
 		}
@@ -243,23 +280,34 @@ func buildAttachments(channelID string, files []*discordgo.File) []*discordgo.Me
 			ProxyURL:    url,
 			Filename:    f.Name,
 			ContentType: f.ContentType,
-			Size:        1,
+		}
+
+		if r, ok := f.Reader.(sizer); ok {
+			attachment.Size = int(r.Size())
 		}
 
 		if isImage(f.ContentType) {
 			config, _, err := image.DecodeConfig(f.Reader)
 			if err != nil {
-				return nil
+				// keep the attachment, but without dimensions
+				slog.Warn("Could not decode image attachment", "filename", f.Name, "err", err)
+			} else {
+				attachment.Width = config.Width
+				attachment.Height = config.Height
 			}
-
-			attachment.Width = config.Width
-			attachment.Height = config.Height
 		}
 
 		attachments = append(attachments, attachment)
 	}
 
 	return attachments
+}
+
+// sizer is implemented by readers which know the total size of their content, such as the *bytes.Reader that
+// parseMessageSend wraps multipart uploads in. discordgo.File has no size field, so this is how an attachment's size
+// is found
+type sizer interface {
+	Size() int64
 }
 
 func isImage(contentType string) bool {
@@ -287,16 +335,26 @@ func deleteChannelMessage(c *gin.Context) {
 		return
 	}
 
-	c.Status(http.StatusOK)
+	c.Status(http.StatusNoContent)
 }
 
 // https://discord.com/developers/docs/resources/message#get-reactions
 func getMessageReaction(c *gin.Context) {
+	if _, err := storage.State.Message(c.Param("channel"), c.Param("message")); err != nil {
+		handleStateErr(c, err)
+		return
+	}
+
 	vs, _ := storage.Reactions.LoadMessageReaction(c.Param("message"), c.Param("reaction"))
 
-	var users []*discordgo.User
+	users := make([]*discordgo.User, 0, len(vs))
 	for _, v := range vs {
-		users = append(users, &discordgo.User{ID: v})
+		u := &discordgo.User{ID: v}
+		if stored, ok := storage.Users.Load(v); ok {
+			su := stored.(discordgo.User)
+			u = builders.Public(&su)
+		}
+		users = append(users, u)
 	}
 
 	c.JSON(http.StatusOK, users)
@@ -310,22 +368,14 @@ func putMessageReaction(c *gin.Context) {
 		return
 	}
 
-	var user *discordgo.User
-	id := c.Param("user")
-	if id == "@me" {
-		v, done := getUser(c)
-		if done {
-			return
-		}
-		user = &v
-	} else {
-		v, ok := storage.Users.Load(id)
-		if !ok {
-			c.AbortWithStatus(http.StatusNotFound)
-			return
-		}
-		u := v.(discordgo.User)
-		user = &u
+	if _, err := storage.State.Message(channel.ID, c.Param("message")); err != nil {
+		handleStateErr(c, err)
+		return
+	}
+
+	user, ok := getUserByID(c, c.Param("user"))
+	if !ok {
+		return
 	}
 
 	storage.Reactions.Store(c.Param("message"), c.Param("reaction"), user.ID)
@@ -343,7 +393,7 @@ func putMessageReaction(c *gin.Context) {
 			GuildID:   channel.GuildID,
 		},
 		Member: &discordgo.Member{
-			User: user,
+			User: builders.Public(user),
 		},
 	}
 
@@ -356,16 +406,36 @@ func putMessageReaction(c *gin.Context) {
 	c.Status(http.StatusNoContent)
 }
 
-// extractEmojiID extracts an option emoji ID from an emoji string
-// emoji strings are either default emoji e.g. "🧀" (with an empty id) or custom emoji e.g. "id:name"
+// extractEmojiID extracts an optional emoji ID from an emoji string
+// emoji strings are either default emoji e.g. "🧀" (with an empty id) or custom emoji e.g. "name:id"
 func extractEmojiID(s string) (emojiID, name string) {
 	split := strings.Split(s, ":")
 
 	if len(split) == 2 {
-		return split[0], split[1]
+		return split[1], split[0] // Discord format is name:id
 	}
 
 	return "", s
+}
+
+// getUserByID retrieves a user by ID, handling the special "@me" case
+// Returns the user and a boolean indicating if the request should continue (false means abort was called)
+func getUserByID(c *gin.Context, id string) (*discordgo.User, bool) {
+	if id == "@me" {
+		v, done := getUser(c)
+		if done {
+			return nil, false
+		}
+		return &v, true
+	}
+
+	v, ok := storage.Users.Load(id)
+	if !ok {
+		c.AbortWithStatus(http.StatusNotFound)
+		return nil, false
+	}
+	u := v.(discordgo.User)
+	return &u, true
 }
 
 // https://discord.com/developers/docs/resources/message#delete-user-reaction
@@ -376,22 +446,14 @@ func deleteMessageReaction(c *gin.Context) {
 		return
 	}
 
-	var user *discordgo.User
-	id := c.Param("user")
-	if id == "@me" {
-		v, done := getUser(c)
-		if done {
-			return
-		}
-		user = &v
-	} else {
-		v, ok := storage.Users.Load(id)
-		if !ok {
-			c.AbortWithStatus(http.StatusNotFound)
-			return
-		}
-		u := v.(discordgo.User)
-		user = &u
+	if _, err := storage.State.Message(channel.ID, c.Param("message")); err != nil {
+		handleStateErr(c, err)
+		return
+	}
+
+	user, ok := getUserByID(c, c.Param("user"))
+	if !ok {
+		return
 	}
 
 	storage.Reactions.DeleteMessageReaction(c.Param("message"), c.Param("reaction"), user.ID)
