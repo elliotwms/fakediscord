@@ -45,7 +45,7 @@ func applicationsController(r *gin.RouterGroup) {
 // https://discord.com/developers/docs/interactions/application-commands#get-global-application-commands
 // https://discord.com/developers/docs/interactions/application-commands#get-guild-application-commands
 func getCommands(c *gin.Context) {
-	var commands []*discordgo.ApplicationCommand
+	commands := []*discordgo.ApplicationCommand{}
 	storage.Commands.Range(func(k, v interface{}) bool {
 		command := v.(*discordgo.ApplicationCommand)
 		if inScope(command, c.Param("application"), c.Param("guild")) {
@@ -66,7 +66,7 @@ func putCommands(c *gin.Context) {
 
 	commands := make([]*discordgo.ApplicationCommand, 0)
 
-	if err := c.BindJSON(&commands); err != nil {
+	if err := c.ShouldBindJSON(&commands); err != nil {
 		_ = c.AbortWithError(http.StatusBadRequest, err)
 		return
 	}
@@ -107,7 +107,7 @@ func postCommand(c *gin.Context) {
 		GuildID:       c.Param("guild"),
 	}
 
-	if err := c.BindJSON(command); err != nil {
+	if err := c.ShouldBindJSON(command); err != nil {
 		_ = c.AbortWithError(http.StatusBadRequest, err)
 		return
 	}

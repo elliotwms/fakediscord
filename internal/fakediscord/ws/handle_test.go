@@ -61,12 +61,6 @@ func dial(t *testing.T, url string) *websocket.Conn {
 	return c
 }
 
-type rawEvent struct {
-	Operation int             `json:"op"`
-	Type      string          `json:"t"`
-	Data      json.RawMessage `json:"d"`
-}
-
 func readHello(t *testing.T, c *websocket.Conn) helloOp {
 	t.Helper()
 
@@ -157,4 +151,34 @@ func TestHandle_HeartbeatIsAcknowledged(t *testing.T) {
 			return
 		}
 	}
+}
+
+func TestHandle_HeartbeatBeforeIdentify(t *testing.T) {
+	url, _ := serve(t)
+	c := dial(t, url)
+
+	readHello(t, c)
+	require.NoError(t, c.WriteJSON(map[string]any{"op": opHeartbeat, "d": nil}))
+
+	var e rawEvent
+	require.NoError(t, c.ReadJSON(&e))
+	require.Equal(t, opHeartbeatACK, e.Operation)
+
+	identify(t, c, "Bot heartbeat_before_identify")
+
+	require.NoError(t, c.ReadJSON(&e))
+	require.Equal(t, "READY", e.Type)
+}
+
+func TestHandle_ResumeIsRejected(t *testing.T) {
+	url, result := serve(t)
+	c := dial(t, url)
+
+	readHello(t, c)
+	require.NoError(t, c.WriteJSON(map[string]any{
+		"op": 6,
+		"d":  map[string]any{"token": "Bot resume", "session_id": "abc", "seq": 1},
+	}))
+
+	require.ErrorContains(t, awaitResult(t, result), "expected identify")
 }

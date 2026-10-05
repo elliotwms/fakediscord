@@ -34,13 +34,13 @@ func setup() {
 	c := readConfig()
 
 	go func() {
-		if err := fakediscord.Run(context.Background(), c); err != nil {
+		if err := fakediscord.Run(context.Background(), ":8080", c); err != nil {
 			panic(err)
 		}
 	}()
 
 	// Wait for server to be ready
-	waitForServer("http://localhost:8080/api/v9/gateway/", 5*time.Second)
+	waitForServer("http://localhost:8080/api/v9/gateway", 5*time.Second)
 }
 
 func waitForServer(url string, timeout time.Duration) {

@@ -1,7 +1,7 @@
 package ws
 
 import (
-	"log"
+	"log/slog"
 
 	"github.com/bwmarrin/discordgo"
 	"github.com/elliotwms/fakediscord/internal/fakediscord/storage"
@@ -10,7 +10,7 @@ import (
 )
 
 func ready(ws *connpool.Conn, u *discordgo.User) error {
-	log.Print("sending READY")
+	slog.Info("Sending READY", "user_id", u.ID)
 
 	return ws.WriteJSON(Event{
 		Type:     "READY",

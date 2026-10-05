@@ -2,6 +2,7 @@ package tests
 
 import (
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -17,7 +18,7 @@ type SessionStage struct {
 
 	require *require.Assertions
 
-	ready *discordgo.Ready
+	ready atomic.Pointer[discordgo.Ready]
 
 	guildCreateMX sync.RWMutex
 	guildCreate   []*discordgo.GuildCreate
@@ -51,7 +52,7 @@ func (s *SessionStage) a_new_session_with_token(token string) *SessionStage {
 
 func (s *SessionStage) the_session_watches_for_ready_events() *SessionStage {
 	s.session.AddHandler(func(_ *discordgo.Session, r *discordgo.Ready) {
-		s.ready = r
+		s.ready.Store(r)
 	})
 
 	return s
@@ -85,7 +86,7 @@ func (s *SessionStage) the_session_is_closed() {
 
 func (s *SessionStage) the_session_is_ready() *SessionStage {
 	s.require.Eventually(func() bool {
-		return s.ready != nil
+		return s.ready.Load() != nil
 	}, defaultWait, defaultTick, "Ready event should eventually be fired")
 
 	return s
@@ -115,7 +116,7 @@ func (s *SessionStage) the_session_receives_guild_create_events() *SessionStage 
 }
 
 func (s *SessionStage) the_session_has_username(u string) *SessionStage {
-	s.require.Equal(u, s.ready.User.Username)
+	s.require.Equal(u, s.ready.Load().User.Username)
 
 	return s
 }

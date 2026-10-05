@@ -1,9 +1,9 @@
 package ws
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
-	"log"
 	"log/slog"
 	"strings"
 	"time"
@@ -19,6 +19,7 @@ var Connections = connpool.New(slog.Default())
 // https://discord.com/developers/docs/topics/opcodes-and-status-codes#gateway-gateway-opcodes
 const (
 	opHeartbeat    = 1
+	opIdentify     = 2
 	opHello        = 10
 	opHeartbeatACK = 11
 )
@@ -55,6 +56,20 @@ type Event struct {
 	Data      any    `json:"d"`
 }
 
+// rawEvent is a gateway payload whose data is decoded later, once its opcode is known
+type rawEvent struct {
+	Operation int             `json:"op"`
+	Sequence  int64           `json:"s"`
+	Type      string          `json:"t"`
+	Data      json.RawMessage `json:"d"`
+}
+
+// identifyOp is the part of the identify payload fakediscord uses. discordgo.Identify is not used as it does not
+// round-trip (e.g. presence.game.created_at is sent as a string but unmarshalled as an int64)
+type identifyOp struct {
+	Token string `json:"token"`
+}
+
 type helloOp struct {
 	// HeartbeatInterval is in milliseconds
 	HeartbeatInterval int64 `json:"heartbeat_interval"`
@@ -69,19 +84,14 @@ func establishConnection(c *connpool.Conn) (*discordgo.User, error) {
 		return nil, err
 	}
 
-	log.Print("waiting for identify")
+	slog.Debug("Waiting for identify")
 
-	// only the token is needed from the identify payload. discordgo.Identify is not used as it does not round-trip
-	// (e.g. presence.game.created_at is sent as a string but unmarshalled as an int64)
-	i := &struct {
-		Token string `json:"token"`
-	}{}
-
-	if err = c.ReadJSON(&Event{Data: i}); err != nil {
-		return nil, fmt.Errorf("read identify: %w", err)
+	token, err := readIdentify(c)
+	if err != nil {
+		return nil, err
 	}
 
-	u, err := authUser(i.Token)
+	u, err := authUser(token)
 	if err != nil {
 		return nil, fmt.Errorf("authenticate: %w", err)
 	}
@@ -95,6 +105,34 @@ func establishConnection(c *connpool.Conn) (*discordgo.User, error) {
 	}
 
 	return u, nil
+}
+
+// readIdentify waits for the identify payload and returns its token. Heartbeats sent before identifying are
+// acknowledged, and any other payload is rejected
+func readIdentify(c *connpool.Conn) (string, error) {
+	for {
+		var e rawEvent
+		if err := c.ReadJSON(&e); err != nil {
+			return "", fmt.Errorf("read identify: %w", err)
+		}
+
+		switch e.Operation {
+		case opHeartbeat:
+			if err := c.WriteJSON(Event{Operation: opHeartbeatACK}); err != nil {
+				return "", err
+			}
+		case opIdentify:
+			var i identifyOp
+			if err := json.Unmarshal(e.Data, &i); err != nil {
+				return "", fmt.Errorf("read identify: %w", err)
+			}
+
+			return i.Token, nil
+		default:
+			// resuming (op 6) is not supported, so clients must identify
+			return "", fmt.Errorf("expected identify (op %d), received op %d", opIdentify, e.Operation)
+		}
+	}
 }
 
 func authUser(token string) (u *discordgo.User, err error) {
@@ -114,7 +152,7 @@ func handleMessage(c *connpool.Conn) error {
 		return err
 	}
 
-	log.Printf("read message %d, %v", e.Operation, e.Data)
+	slog.Debug("Read gateway message", "op", e.Operation)
 
 	if e.Operation == opHeartbeat {
 		return c.WriteJSON(Event{Operation: opHeartbeatACK})

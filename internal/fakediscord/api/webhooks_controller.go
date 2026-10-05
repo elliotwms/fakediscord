@@ -53,7 +53,7 @@ func getResponse(c *gin.Context) {
 
 func patchResponse(c *gin.Context) {
 	edit := &discordgo.WebhookEdit{}
-	err := c.BindJSON(edit)
+	err := c.ShouldBindJSON(edit)
 	if err != nil {
 		_ = c.AbortWithError(http.StatusBadRequest, err)
 		return
@@ -70,12 +70,11 @@ func patchResponse(c *gin.Context) {
 	v, _ = storage.InteractionResponses.LoadOrStore(token, snowflake.Generate().String())
 	id := v.(string)
 
-	v, ok = storage.Users.Load(interaction.AppID)
+	user, ok := appUser(&interaction)
 	if !ok {
 		_ = c.AbortWithError(http.StatusNotFound, fmt.Errorf("user not found"))
 		return
 	}
-	user := v.(discordgo.User)
 
 	m, err := storage.State.Message(interaction.ChannelID, id)
 	if err != nil {
@@ -87,7 +86,7 @@ func patchResponse(c *gin.Context) {
 		// build a new message
 		slog.Info("message not found, creating new message", "id", id, "token", token)
 
-		m = builders.NewMessage(&user, interaction.ChannelID, interaction.GuildID).
+		m = builders.NewMessage(user, interaction.ChannelID, interaction.GuildID).
 			WithID(id).
 			WithType(discordgo.MessageTypeReply).
 			Build()
@@ -125,4 +124,7 @@ func updateMessage(m *discordgo.Message, edit *discordgo.WebhookEdit) {
 	}
 
 	// todo allowed mentions?
+
+	// editing a deferred response replaces the "thinking..." placeholder
+	m.Flags &^= discordgo.MessageFlagsLoading
 }

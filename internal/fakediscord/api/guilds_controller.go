@@ -28,9 +28,9 @@ func postGuild(c *gin.Context) {
 		Name string `json:"name"`
 	}{}
 
-	err := c.BindJSON(&data)
+	err := c.ShouldBindJSON(&data)
 	if err != nil {
-		_ = c.AbortWithError(http.StatusInternalServerError, err)
+		_ = c.AbortWithError(http.StatusBadRequest, err)
 		return
 	}
 
@@ -97,7 +97,7 @@ func getGuildChannels(c *gin.Context) {
 func postGuildChannels(c *gin.Context) {
 	channel := discordgo.Channel{}
 
-	err := c.BindJSON(&channel)
+	err := c.ShouldBindJSON(&channel)
 	if err != nil {
 		_ = c.AbortWithError(http.StatusBadRequest, err)
 		return
@@ -108,7 +108,7 @@ func postGuildChannels(c *gin.Context) {
 
 	err = storage.State.ChannelAdd(&channel)
 	if err != nil {
-		_ = c.AbortWithError(http.StatusInternalServerError, err)
+		handleStateErr(c, err)
 		return
 	}
 

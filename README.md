@@ -38,6 +38,15 @@ services:
       - ${PWD}/fakediscord.yaml:/config.yml:ro
 ```
 
+The following environment variables can be set:
+
+| Variable      | Default      | Description                                      |
+|---------------|--------------|--------------------------------------------------|
+| `PORT`        | `8080`       | Port to listen on                                |
+| `CONFIG_PATH` | `config.yml` | Path to the config file. A missing file is fine |
+
+The gateway URL returned by `GET /gateway` uses the host the request was made to, so `fakediscord` can be reached by a docker-compose service name (e.g. `http://fakediscord:8080/`) or a remapped port.
+
 `fakediscord` provides a Go client as a convenience wrapper for internal endpoints, as well as a shim for discordgo to allow you to override the endpoints, which can be found in `pkg/fakediscord`.
 
 Override the Discord Base URL to `fakediscord`'s, then proceed to use your client as normal:
@@ -48,24 +57,24 @@ package main
 import "github.com/elliotwms/fakediscord/pkg/fakediscord"
 
 func main() { 
-	// override discordgo URLs
-	fakediscord.Configure("http://localhost:8080") 
+	// override discordgo URLs (note the trailing slash)
+	fakediscord.Configure("http://localhost:8080/")
 	
 	// Client for internal endpoints (e.g. interactions)
-	c := fakediscord.NewClient()
+	c := fakediscord.NewClient("your-bot-token")
 }
 ```
 
 ### Authentication
 
-* Any token value will pass authentication (`Bot {token}`)
+* Any token value will pass authentication (`Bot {token}`). A missing `Authorization` header returns `401`
 * If the token matches one specified in the config then the relevant user will be authenticated
 * Otherwise, a user will be generated with the token value as the username
 * For testing purposes, all users are assumed to be in all guilds
 
 ### Interactions
 
-`fakediscord` provides an endpoint for triggering interactions, which would normally only be possible via a user initiating via the UI. A `POST` of an `InteractionCreate` event to `/api/:version/interactions` will create an interaction.
+`fakediscord` provides an endpoint for triggering interactions, which would normally only be possible via a user initiating via the UI. A `POST` of an `InteractionCreate` event to `/api/:version/interactions` will create an interaction. If the interaction has no `member` or `user`, the authenticated user is set as the invoking member.
 
 A suggested pattern for testing interactions within a webhook application would be as follows: 
 
@@ -104,9 +113,11 @@ sequenceDiagram
 #### Gateway
 
 * Get Gateway
+* Get Gateway Bot
 * Connect
   * `HELLO`
   * `READY`
+  * Heartbeats (resuming is not supported)
   * [`GUILD_CREATE`](https://discord.com/developers/docs/events/gateway-events#guild-create)
 
 ### Guilds
@@ -128,6 +139,8 @@ sequenceDiagram
 * [Get Pinned Messages](https://discord.com/developers/docs/resources/channel#get-pinned-messages)
 * [Pin Message](https://discord.com/developers/docs/resources/channel#pin-message)
   * [`CHANNEL_PINS_UPDATE`](https://discord.com/developers/docs/events/gateway-events#channel-pins-update)
+* [Unpin Message](https://discord.com/developers/docs/resources/channel#unpin-message)
+  * [`CHANNEL_PINS_UPDATE`](https://discord.com/developers/docs/events/gateway-events#channel-pins-update)
 
 ### Messages
 
@@ -140,6 +153,8 @@ sequenceDiagram
 * [Get Message Reactions](https://discord.com/developers/docs/resources/message#get-reactions)
 * [Create Reaction](https://discord.com/developers/docs/resources/message#create-reaction)
   * [`MESSAGE_REACTION_ADD`](https://discord.com/developers/docs/events/gateway-events#message-reaction-add)
+* [Delete Own/User Reaction](https://discord.com/developers/docs/resources/message#delete-user-reaction)
+  * [`MESSAGE_REACTION_REMOVE`](https://discord.com/developers/docs/events/gateway-events#message-reaction-remove)
 * [Delete Reactions](https://discord.com/developers/docs/resources/message#delete-all-reactions)
   * [`MESSAGE_REACTION_REMOVE_ALL`](https://discord.com/developers/docs/events/gateway-events#message-reaction-remove-all)
 
@@ -147,6 +162,8 @@ sequenceDiagram
 
 * Create (see [docs](#interactions))
 * [Callback](https://discord.com/developers/docs/interactions/receiving-and-responding#interaction-callback)
+* [Get Original Response](https://discord.com/developers/docs/interactions/receiving-and-responding#get-original-interaction-response)
+* [Edit Original Response](https://discord.com/developers/docs/interactions/receiving-and-responding#edit-original-interaction-response)
 
 ## Examples
 

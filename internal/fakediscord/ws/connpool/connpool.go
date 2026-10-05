@@ -5,6 +5,7 @@ import (
 	"errors"
 	"log/slog"
 	"sync"
+	"time"
 
 	"github.com/bwmarrin/discordgo"
 	"github.com/elliotwms/fakediscord/internal/sequence"
@@ -13,6 +14,10 @@ import (
 )
 
 type Key struct{ ID, UserID string }
+
+// writeTimeout bounds how long a write to a single connection may block, so that a client which has stopped reading
+// cannot stall events for every other connection
+var writeTimeout = 10 * time.Second
 
 // Conn wraps a websocket connection so that writes from multiple goroutines are serialised, as gorilla/websocket
 // supports at most one concurrent writer per connection
@@ -29,7 +34,17 @@ func (c *Conn) WriteJSON(v any) error {
 	c.mx.Lock()
 	defer c.mx.Unlock()
 
-	return c.ws.WriteJSON(v)
+	if err := c.ws.SetWriteDeadline(time.Now().Add(writeTimeout)); err != nil {
+		return err
+	}
+
+	if err := c.ws.WriteJSON(v); err != nil {
+		// a failed write leaves the connection unusable, so close it to end its read loop and remove it from the pool
+		_ = c.ws.Close()
+		return err
+	}
+
+	return nil
 }
 
 // ReadJSON reads the next message from the connection. Only one goroutine may read at a time

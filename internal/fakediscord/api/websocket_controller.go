@@ -1,7 +1,9 @@
 package api
 
 import (
-	"log"
+	"errors"
+	"log/slog"
+	"net"
 	"net/http"
 
 	internalws "github.com/elliotwms/fakediscord/internal/fakediscord/ws"
@@ -19,7 +21,7 @@ var upgrader = websocket.Upgrader{
 }
 
 func handleWS(c *gin.Context) {
-	log.Print("handling websocket request")
+	slog.Debug("Handling websocket request")
 	ws, err := upgrader.Upgrade(c.Writer, c.Request, nil)
 	if err != nil {
 		c.AbortWithStatus(http.StatusInternalServerError)
@@ -27,13 +29,13 @@ func handleWS(c *gin.Context) {
 	}
 
 	defer func() {
-		if err := ws.Close(); err != nil {
-			log.Printf("failed to close websocket: %s", err)
-			return
+		// the connection may already have been closed after a failed write
+		if err := ws.Close(); err != nil && !errors.Is(err, net.ErrClosed) {
+			slog.Error("Failed to close websocket", "err", err)
 		}
 	}()
 
 	if err = internalws.Handle(ws); err != nil && !websocket.IsCloseError(err, websocket.CloseNormalClosure) {
-		log.Printf("websocket error: %s", err)
+		slog.Warn("Websocket error", "err", err)
 	}
 }
