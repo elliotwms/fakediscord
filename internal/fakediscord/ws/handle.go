@@ -56,6 +56,20 @@ type Event struct {
 	Data      any    `json:"d"`
 }
 
+// rawEvent is a gateway payload whose data is decoded later, once its opcode is known
+type rawEvent struct {
+	Operation int             `json:"op"`
+	Sequence  int64           `json:"s"`
+	Type      string          `json:"t"`
+	Data      json.RawMessage `json:"d"`
+}
+
+// identifyOp is the part of the identify payload fakediscord uses. discordgo.Identify is not used as it does not
+// round-trip (e.g. presence.game.created_at is sent as a string but unmarshalled as an int64)
+type identifyOp struct {
+	Token string `json:"token"`
+}
+
 type helloOp struct {
 	// HeartbeatInterval is in milliseconds
 	HeartbeatInterval int64 `json:"heartbeat_interval"`
@@ -97,11 +111,7 @@ func establishConnection(c *connpool.Conn) (*discordgo.User, error) {
 // acknowledged, and any other payload is rejected
 func readIdentify(c *connpool.Conn) (string, error) {
 	for {
-		var e struct {
-			Operation int             `json:"op"`
-			Data      json.RawMessage `json:"d"`
-		}
-
+		var e rawEvent
 		if err := c.ReadJSON(&e); err != nil {
 			return "", fmt.Errorf("read identify: %w", err)
 		}
@@ -112,11 +122,7 @@ func readIdentify(c *connpool.Conn) (string, error) {
 				return "", err
 			}
 		case opIdentify:
-			// only the token is needed from the identify payload. discordgo.Identify is not used as it does not
-			// round-trip (e.g. presence.game.created_at is sent as a string but unmarshalled as an int64)
-			var i struct {
-				Token string `json:"token"`
-			}
+			var i identifyOp
 			if err := json.Unmarshal(e.Data, &i); err != nil {
 				return "", fmt.Errorf("read identify: %w", err)
 			}

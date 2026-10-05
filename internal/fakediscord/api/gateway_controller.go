@@ -9,8 +9,8 @@ import (
 
 func gatewayController(r *gin.RouterGroup) {
 	r.Use(auth)
+	// requests to /gateway/ are redirected here by gin's RedirectTrailingSlash
 	r.GET("", getGateway)
-	r.GET("/", getGateway)
 	r.GET("/bot", getGatewayBot)
 }
 
