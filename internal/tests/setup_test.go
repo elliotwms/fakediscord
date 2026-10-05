@@ -47,7 +47,7 @@ func waitForServer(url string, timeout time.Duration) {
 	for time.Now().Before(deadline) {
 		resp, err := http.Get(url)
 		if err == nil {
-			resp.Body.Close()
+			_ = resp.Body.Close()
 			return
 		}
 		time.Sleep(10 * time.Millisecond)
