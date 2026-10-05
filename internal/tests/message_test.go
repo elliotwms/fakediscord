@@ -31,6 +31,58 @@ func TestMessage_Pin(t *testing.T) {
 		the_message_has_been_pinned()
 }
 
+func TestMessage_PinTwice(t *testing.T) {
+	given, when, then := NewMessageStage(t)
+
+	given.
+		a_message().and().
+		the_message_is_sent()
+
+	when.
+		the_message_is_pinned().and().
+		the_message_is_pinned_again()
+
+	then.
+		the_message_should_be_pinned_once()
+}
+
+func TestMessage_Unpin(t *testing.T) {
+	given, when, then := NewMessageStage(t)
+
+	given.
+		a_message().and().
+		the_message_is_sent().and().
+		the_message_is_pinned()
+
+	when.
+		the_message_is_unpinned()
+
+	then.
+		the_message_should_not_be_pinned()
+}
+
+func TestMessage_PinnedThenDeleted(t *testing.T) {
+	given, when, then := NewMessageStage(t)
+
+	given.
+		a_message().and().
+		the_message_is_sent().and().
+		the_message_is_pinned()
+
+	when.
+		the_message_is_deleted()
+
+	then.
+		the_message_should_not_be_pinned()
+}
+
+func TestMessage_PinMissing(t *testing.T) {
+	_, _, then := NewMessageStage(t)
+
+	then.
+		pinning_a_missing_message_should_fail()
+}
+
 func TestMessage_React(t *testing.T) {
 	given, when, then := NewMessageStage(t)
 
@@ -70,10 +122,10 @@ func TestMessage_React_CustomEmoji(t *testing.T) {
 		we_listen_for_message_reaction_events().and()
 
 	when.
-		the_message_is_reacted_to_with("custom_id:cheese")
+		the_message_is_reacted_to_with("cheese:custom_id")
 
 	then.
-		the_message_should_have_n_reactions_to_emoji(1, "custom_id:cheese").and().
+		the_message_should_have_n_reactions_to_emoji(1, "cheese:custom_id").and().
 		a_message_reaction_add_event_should_have_been_received_with_id_and_name("custom_id", "cheese")
 }
 
@@ -84,13 +136,13 @@ func TestMessage_React_CustomEmojiDelete(t *testing.T) {
 		a_message().and().
 		the_message_is_sent().and().
 		we_listen_for_message_reaction_events().and().
-		the_message_is_reacted_to_with("custom_id:cheese")
+		the_message_is_reacted_to_with("cheese:custom_id")
 
 	when.
-		the_message_reaction_is_removed("custom_id:cheese")
+		the_message_reaction_is_removed("cheese:custom_id")
 
 	then.
-		the_message_should_have_n_reactions_to_emoji(0, "custom_id:cheese").and().
+		the_message_should_have_n_reactions_to_emoji(0, "cheese:custom_id").and().
 		a_message_reaction_remove_event_should_have_been_received_with_id_and_name("custom_id", "cheese")
 }
 
@@ -128,6 +180,21 @@ func TestMessage_WithImageAttachment(t *testing.T) {
 	then.
 		the_message_should_have_an_attachment().and().
 		the_first_attachment_should_have_a_resolution_set()
+}
+
+func TestMessage_AttachmentSize(t *testing.T) {
+	given, when, then := NewMessageStage(t)
+
+	given.
+		a_message().and().
+		an_attachment("hello.txt", "text/plain")
+
+	when.
+		the_message_is_sent()
+
+	then.
+		the_message_should_have_an_attachment().and().
+		the_first_attachment_should_have_its_size_set("hello.txt")
 }
 
 func TestMessage_WithLink(t *testing.T) {

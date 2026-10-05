@@ -54,3 +54,24 @@ func TestReactionStore_DeleteMessageReactions(t *testing.T) {
 	require.Empty(t, users)
 	require.False(t, ok)
 }
+
+func TestReactionStore_Store_Idempotent(t *testing.T) {
+	Reactions.Store("idempotent", "🔁", "foo")
+	Reactions.Store("idempotent", "🔁", "foo")
+
+	users, ok := Reactions.LoadMessageReaction("idempotent", "🔁")
+
+	require.True(t, ok)
+	require.Equal(t, []string{"foo"}, users)
+}
+
+func TestReactionStore_DeleteMessageReaction_DoesNotModifyLoadedSlice(t *testing.T) {
+	Reactions.Store("loaded", "📦", "foo")
+	Reactions.Store("loaded", "📦", "bar")
+
+	users, _ := Reactions.LoadMessageReaction("loaded", "📦")
+
+	Reactions.DeleteMessageReaction("loaded", "📦", "foo")
+
+	require.Equal(t, []string{"foo", "bar"}, users)
+}

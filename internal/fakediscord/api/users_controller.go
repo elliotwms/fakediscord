@@ -18,7 +18,7 @@ func getUserGuilds(c *gin.Context) {
 	storage.State.RLock()
 	defer storage.State.RUnlock()
 
-	guilds := make([]*discordgo.UserGuild, len(storage.State.Guilds))
+	guilds := make([]*discordgo.UserGuild, 0, len(storage.State.Guilds))
 
 	for _, g := range storage.State.Guilds {
 		guilds = append(guilds, &discordgo.UserGuild{
