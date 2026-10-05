@@ -72,7 +72,7 @@ func (s *ChannelStage) a_channel_does_not_exist_named(name string) *ChannelStage
 func (s *ChannelStage) state_contains_the_channel() *ChannelStage {
 	s.require.Eventually(func() bool {
 		channel, err := s.session.State.Channel(s.channel.ID)
-		return !(err != nil || channel == nil)
+		return err == nil && channel != nil
 	}, time.Second, time.Millisecond*100)
 
 	return s

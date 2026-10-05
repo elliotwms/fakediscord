@@ -94,7 +94,7 @@ func (s *SessionStage) the_session_is_ready() *SessionStage {
 
 func (s *SessionStage) the_session_receives_guild_create_events() *SessionStage {
 	s.session.State.RLock()
-	n := len(s.session.State.Ready.Guilds)
+	n := len(s.session.State.Guilds)
 	s.session.State.RUnlock()
 
 	currLen := 0
