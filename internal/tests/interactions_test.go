@@ -19,6 +19,7 @@ func TestInteraction_Create(t *testing.T) {
 	then.
 		no_error_should_be_returned().and().
 		the_interaction_should_be_valid().and().
+		the_interaction_should_have_an_invoking_member().and().
 		the_command_handler_should_have_been_triggered()
 }
 
@@ -83,7 +84,9 @@ func TestInteraction_Callback(t *testing.T) {
 		the_interaction_message_is_updated()
 
 	then.
-		a_message_should_have_been_posted_in_the_channel()
+		a_message_should_have_been_posted_in_the_channel().and().
+		the_response_should_be_authored_by_the_bot().and().
+		the_response_should_not_be_loading()
 }
 
 func TestInteraction_Callback_WithMessage(t *testing.T) {
@@ -96,5 +99,19 @@ func TestInteraction_Callback_WithMessage(t *testing.T) {
 		the_interaction_callback_is_triggered_with_a_message()
 
 	then.
-		a_message_should_have_been_posted_in_the_channel()
+		a_message_should_have_been_posted_in_the_channel().and().
+		the_response_should_be_authored_by_the_bot()
+}
+
+func TestInteraction_Callback_WrongID(t *testing.T) {
+	given, when, then := NewInteractionStage(t)
+
+	given.
+		the_interaction_is_triggered()
+
+	when.
+		the_interaction_callback_is_triggered_with_the_wrong_id()
+
+	then.
+		an_error_should_be_returned()
 }

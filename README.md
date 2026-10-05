@@ -38,34 +38,61 @@ services:
       - ${PWD}/fakediscord.yaml:/config.yml:ro
 ```
 
-`fakediscord` provides a Go client as a convenience wrapper for internal endpoints, as well as a shim for discordgo to allow you to override the endpoints, which can be found in `pkg/fakediscord`.
+The following environment variables can be set:
 
-Override the Discord Base URL to `fakediscord`'s, then proceed to use your client as normal:
+| Variable      | Default      | Description                                      |
+|---------------|--------------|--------------------------------------------------|
+| `PORT`        | `8080`       | Port to listen on                                |
+| `CONFIG_PATH` | `config.yml` | Path to the config file. A missing file is fine |
+
+The gateway URL returned by `GET /gateway` uses the host the request was made to, so `fakediscord` can be reached by a docker-compose service name (e.g. `http://fakediscord:8080/`) or a remapped port.
+
+`fakediscord` provides a Go client as a convenience wrapper for internal endpoints, as well as helpers to point discordgo (or any `http.Client`) at `fakediscord`, which can be found in `pkg/fakediscord`.
+
+Point your session at `fakediscord` before opening it, then use it as normal:
 
 ```go
 package main
 
-import "github.com/elliotwms/fakediscord/pkg/fakediscord"
+import (
+	"github.com/bwmarrin/discordgo"
+	"github.com/elliotwms/fakediscord/pkg/fakediscord"
+)
 
-func main() { 
-	// override discordgo URLs
-	fakediscord.Configure("http://localhost:8080") 
-	
+const baseURL = "http://localhost:8080/"
+
+func main() {
+	session, _ := discordgo.New("Bot your-bot-token")
+
+	// send the session's requests (and so its gateway connection) to fakediscord
+	if err := fakediscord.ConfigureSession(session, baseURL); err != nil {
+		panic(err)
+	}
+
 	// Client for internal endpoints (e.g. interactions)
-	c := fakediscord.NewClient()
+	c := fakediscord.NewClient("your-bot-token").WithBaseURL(baseURL)
 }
 ```
 
+`ConfigureSession` wraps the session's HTTP client with `fakediscord.Transport`, which sends any request addressed to `discord.com` to `fakediscord` instead. If your bot calls the Discord API without discordgo, you can use `Transport` with your own `http.Client`:
+
+```go
+u, _ := url.Parse("http://localhost:8080/")
+client := &http.Client{Transport: fakediscord.Transport(u, nil)}
+```
+
+`fakediscord.Configure(baseURL)`, which overrides discordgo's package-level endpoints, is deprecated. It only covers some endpoints, and applies to every session in the process.
+
 ### Authentication
 
-* Any token value will pass authentication (`Bot {token}`)
+* Any token value will pass authentication (`Bot {token}`). A missing `Authorization` header returns `401`
 * If the token matches one specified in the config then the relevant user will be authenticated
 * Otherwise, a user will be generated with the token value as the username
 * For testing purposes, all users are assumed to be in all guilds
 
 ### Interactions
 
-`fakediscord` provides an endpoint for triggering interactions, which would normally only be possible via a user initiating via the UI. A `POST` of an `InteractionCreate` event to `/api/:version/interactions` will create an interaction.
+`fakediscord` provides an endpoint for triggering interactions, which would normally only be possible via a user initiating via the UI. A `POST` of an `InteractionCreate` event to `/api/:version/interactions` will create an interaction. If the interaction has no `member` or `user`, the authenticated user is set as the invoking member.
 
 A suggested pattern for testing interactions within a webhook application would be as follows: 
 
@@ -104,9 +131,11 @@ sequenceDiagram
 #### Gateway
 
 * Get Gateway
+* Get Gateway Bot
 * Connect
   * `HELLO`
   * `READY`
+  * Heartbeats (resuming is not supported)
   * [`GUILD_CREATE`](https://discord.com/developers/docs/events/gateway-events#guild-create)
 
 ### Guilds
@@ -128,6 +157,8 @@ sequenceDiagram
 * [Get Pinned Messages](https://discord.com/developers/docs/resources/channel#get-pinned-messages)
 * [Pin Message](https://discord.com/developers/docs/resources/channel#pin-message)
   * [`CHANNEL_PINS_UPDATE`](https://discord.com/developers/docs/events/gateway-events#channel-pins-update)
+* [Unpin Message](https://discord.com/developers/docs/resources/channel#unpin-message)
+  * [`CHANNEL_PINS_UPDATE`](https://discord.com/developers/docs/events/gateway-events#channel-pins-update)
 
 ### Messages
 
@@ -140,6 +171,8 @@ sequenceDiagram
 * [Get Message Reactions](https://discord.com/developers/docs/resources/message#get-reactions)
 * [Create Reaction](https://discord.com/developers/docs/resources/message#create-reaction)
   * [`MESSAGE_REACTION_ADD`](https://discord.com/developers/docs/events/gateway-events#message-reaction-add)
+* [Delete Own/User Reaction](https://discord.com/developers/docs/resources/message#delete-user-reaction)
+  * [`MESSAGE_REACTION_REMOVE`](https://discord.com/developers/docs/events/gateway-events#message-reaction-remove)
 * [Delete Reactions](https://discord.com/developers/docs/resources/message#delete-all-reactions)
   * [`MESSAGE_REACTION_REMOVE_ALL`](https://discord.com/developers/docs/events/gateway-events#message-reaction-remove-all)
 
@@ -147,6 +180,8 @@ sequenceDiagram
 
 * Create (see [docs](#interactions))
 * [Callback](https://discord.com/developers/docs/interactions/receiving-and-responding#interaction-callback)
+* [Get Original Response](https://discord.com/developers/docs/interactions/receiving-and-responding#get-original-interaction-response)
+* [Edit Original Response](https://discord.com/developers/docs/interactions/receiving-and-responding#edit-original-interaction-response)
 
 ## Examples
 
@@ -155,5 +190,5 @@ Check out how the following projects use `fakediscord` for inspiration:
 ### [Pinbot](https://github.com/elliotwms/pinbot/tree/master/tests)
 
 * Docker [Compose](https://github.com/elliotwms/pinbot/blob/master/compose.yaml) contains Pinbot config, including the bot user in [fakediscord.yaml](https://github.com/elliotwms/pinbot/blob/master/fakediscord.yaml)
-* [TestMain](https://github.com/elliotwms/pinbot/blob/20debf13a3dff8e58b7d61ec5e04c18c1542be3d/tests/setup_test.go#L21) calls `fakediscord.Configure` to set base URLs etc, sets up the client, creates a test guild for the run and opens a general session for the test suite
+* [TestMain](https://github.com/elliotwms/pinbot/blob/20debf13a3dff8e58b7d61ec5e04c18c1542be3d/tests/setup_test.go#L21) calls `fakediscord.Configure` (now deprecated in favour of `ConfigureSession`) to set base URLs etc, sets up the client, creates a test guild for the run and opens a general session for the test suite
 * Individual tests then create channels in the test guild to execute their tests within ([example](https://github.com/elliotwms/pinbot/blob/20debf13a3dff8e58b7d61ec5e04c18c1542be3d/tests/pin_test.go#L7))

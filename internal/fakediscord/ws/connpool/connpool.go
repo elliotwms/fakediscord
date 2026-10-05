@@ -5,6 +5,7 @@ import (
 	"errors"
 	"log/slog"
 	"sync"
+	"time"
 
 	"github.com/bwmarrin/discordgo"
 	"github.com/elliotwms/fakediscord/internal/sequence"
@@ -14,9 +15,54 @@ import (
 
 type Key struct{ ID, UserID string }
 
+// writeTimeout bounds how long a write to a single connection may block, so that a client which has stopped reading
+// cannot stall events for every other connection
+var writeTimeout = 10 * time.Second
+
+// Conn wraps a websocket connection so that writes from multiple goroutines are serialised, as gorilla/websocket
+// supports at most one concurrent writer per connection
+type Conn struct {
+	mx sync.Mutex
+	ws *websocket.Conn
+}
+
+func NewConn(ws *websocket.Conn) *Conn {
+	return &Conn{ws: ws}
+}
+
+func (c *Conn) WriteJSON(v any) error {
+	c.mx.Lock()
+	defer c.mx.Unlock()
+
+	if err := c.ws.SetWriteDeadline(time.Now().Add(writeTimeout)); err != nil {
+		return err
+	}
+
+	if err := c.ws.WriteJSON(v); err != nil {
+		// a failed write leaves the connection unusable, so close it to end its read loop and remove it from the pool
+		_ = c.ws.Close()
+		return err
+	}
+
+	return nil
+}
+
+// ReadJSON reads the next message from the connection. Only one goroutine may read at a time
+func (c *Conn) ReadJSON(v any) error {
+	return c.ws.ReadJSON(v)
+}
+
+func (c *Conn) Close() error {
+	return c.ws.Close()
+}
+
 type ConnPool struct {
 	conns sync.Map
 	log   *slog.Logger
+
+	// dispatch is held while an event is sequenced and written, so that every connection receives events in
+	// sequence order
+	dispatch sync.Mutex
 }
 
 func New(logger *slog.Logger) *ConnPool {
@@ -26,13 +72,13 @@ func New(logger *slog.Logger) *ConnPool {
 }
 
 // Add adds an established connection to the pool to receive events/broadcasts
-func (p *ConnPool) Add(u string, ws *websocket.Conn) (k Key) {
+func (p *ConnPool) Add(u string, c *Conn) (k Key) {
 	k = Key{
 		ID:     snowflake.Generate().String(),
 		UserID: u,
 	}
 
-	p.conns.Store(k, ws)
+	p.conns.Store(k, c)
 
 	return
 }
@@ -52,6 +98,9 @@ func (p *ConnPool) Broadcast(t string, body interface{}) (n int, err error) {
 		return n, err
 	}
 
+	p.dispatch.Lock()
+	defer p.dispatch.Unlock()
+
 	e := discordgo.Event{
 		Sequence: sequence.Next(),
 		Type:     t,
@@ -60,7 +109,7 @@ func (p *ConnPool) Broadcast(t string, body interface{}) (n int, err error) {
 
 	var errs []error
 	p.conns.Range(func(_, value any) bool {
-		if writeErr := value.(*websocket.Conn).WriteJSON(e); writeErr != nil {
+		if writeErr := value.(*Conn).WriteJSON(e); writeErr != nil {
 			errs = append(errs, writeErr)
 		} else {
 			n++
@@ -79,6 +128,9 @@ func (p *ConnPool) Send(userID, t string, body interface{}) (ok bool, err error)
 		return false, err
 	}
 
+	p.dispatch.Lock()
+	defer p.dispatch.Unlock()
+
 	return p.send(userID, discordgo.Event{
 		Sequence: sequence.Next(),
 		Type:     t,
@@ -91,7 +143,7 @@ func (p *ConnPool) send(userID string, event discordgo.Event) (ok bool, err erro
 
 	p.conns.Range(func(k, value any) bool {
 		if k.(Key).UserID == userID {
-			err := value.(*websocket.Conn).WriteJSON(event)
+			err := value.(*Conn).WriteJSON(event)
 			if err != nil {
 				errs = append(errs, err)
 			} else {

@@ -1,6 +1,7 @@
 package auth
 
 import (
+	"sync"
 	"testing"
 
 	"github.com/elliotwms/fakediscord/internal/fakediscord/builders"
@@ -39,4 +40,27 @@ func TestUsers_Authenticate_TokenNotFound(t *testing.T) {
 	require.NotEmpty(t, u.Discriminator)
 	require.Len(t, u.Discriminator, 4)
 	require.Equal(t, token, u.Username)
+}
+
+func TestUsers_Authenticate_ConcurrentUnknownToken(t *testing.T) {
+	token := "concurrent"
+
+	const n = 20
+	ids := make(chan string, n)
+
+	var wg sync.WaitGroup
+	for range n {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			ids <- Authenticate(token).ID
+		}()
+	}
+	wg.Wait()
+	close(ids)
+
+	first := <-ids
+	for id := range ids {
+		require.Equal(t, first, id)
+	}
 }

@@ -16,6 +16,7 @@ import (
 	"gopkg.in/yaml.v2"
 )
 
+const baseURL = "http://localhost:8080/"
 const botToken = "token"
 const appID = "1290742494824366183"
 
@@ -29,18 +30,16 @@ func TestMain(m *testing.M) {
 }
 
 func setup() {
-	pkgfakediscord.Configure("http://localhost:8080/")
-
 	c := readConfig()
 
 	go func() {
-		if err := fakediscord.Run(context.Background(), c); err != nil {
+		if err := fakediscord.Run(context.Background(), ":8080", c); err != nil {
 			panic(err)
 		}
 	}()
 
 	// Wait for server to be ready
-	waitForServer("http://localhost:8080/api/v9/gateway/", 5*time.Second)
+	waitForServer("http://localhost:8080/api/v9/gateway", 5*time.Second)
 }
 
 func waitForServer(url string, timeout time.Duration) {
@@ -48,7 +47,7 @@ func waitForServer(url string, timeout time.Duration) {
 	for time.Now().Before(deadline) {
 		resp, err := http.Get(url)
 		if err == nil {
-			resp.Body.Close()
+			_ = resp.Body.Close()
 			return
 		}
 		time.Sleep(10 * time.Millisecond)
@@ -72,6 +71,9 @@ func readConfig() config.Config {
 
 func newSession(token string) *discordgo.Session {
 	session, _ := discordgo.New("Bot " + token)
+	if err := pkgfakediscord.ConfigureSession(session, baseURL); err != nil {
+		panic(err)
+	}
 
 	if os.Getenv("DEBUG") != "" {
 		session.LogLevel = discordgo.LogDebug

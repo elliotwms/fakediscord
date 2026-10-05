@@ -67,7 +67,7 @@ func NewMember(guildID string, u *discordgo.User) *Member {
 		m: &discordgo.Member{
 			GuildID:  guildID,
 			JoinedAt: time.Now(),
-			User:     u,
+			User:     Public(u),
 		},
 	}
 }

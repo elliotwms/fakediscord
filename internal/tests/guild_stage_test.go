@@ -1,6 +1,9 @@
 package tests
 
 import (
+	"slices"
+	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -15,10 +18,11 @@ type GuildStage struct {
 
 	guildName string
 
-	err         error
-	guild       *discordgo.Guild
-	guildCreate *discordgo.GuildCreate
-	guildDelete *discordgo.GuildDelete
+	err           error
+	guild         *discordgo.Guild
+	guildCreate   atomic.Pointer[discordgo.GuildCreate]
+	guildDeleteMX sync.Mutex
+	guildDeletes  []string
 }
 
 func NewGuildStage(t *testing.T) (*GuildStage, *GuildStage, *GuildStage) {
@@ -46,9 +50,9 @@ func (s *GuildStage) a_guild_named(name string) *GuildStage {
 
 func (s *GuildStage) the_session_expects_a_guild_create_event_for_the_guild() {
 	s.session.AddHandler(func(_ *discordgo.Session, e *discordgo.GuildCreate) {
-		s.t.Logf("Received %s event for guild '%s'", "GUILD_CREATE", e.Guild.Name)
-		if e.Guild.Name == s.guildName {
-			s.guildCreate = e
+		s.t.Logf("Received %s event for guild '%s'", "GUILD_CREATE", e.Name)
+		if e.Name == s.guildName {
+			s.guildCreate.Store(e)
 		}
 	})
 }
@@ -67,16 +71,17 @@ func (s *GuildStage) no_error_should_be_returned() *GuildStage {
 
 func (s *GuildStage) the_session_should_have_received_the_guild_create_event() {
 	s.require.Eventually(func() bool {
-		return s.guildCreate != nil
+		return s.guildCreate.Load() != nil
 	}, time.Second, time.Millisecond*10)
 }
 
 func (s *GuildStage) the_session_expects_a_guild_delete_event_for_the_guild() *GuildStage {
 	s.session.AddHandler(func(_ *discordgo.Session, e *discordgo.GuildDelete) {
-		s.t.Logf("Received %s event for guild '%s'", "GUILD_DELETE", e.Guild.ID)
-		if e.Guild.ID == s.guild.ID {
-			s.guildDelete = e
-		}
+		s.t.Logf("Received %s event for guild '%s'", "GUILD_DELETE", e.ID)
+
+		s.guildDeleteMX.Lock()
+		defer s.guildDeleteMX.Unlock()
+		s.guildDeletes = append(s.guildDeletes, e.ID)
 	})
 
 	return s
@@ -87,8 +92,13 @@ func (s *GuildStage) the_guild_is_deleted() {
 }
 
 func (s *GuildStage) the_session_should_have_received_the_guild_deleted_event() {
+	guildID := s.guild.ID
+
 	s.require.Eventually(func() bool {
-		return s.guildDelete != nil
+		s.guildDeleteMX.Lock()
+		defer s.guildDeleteMX.Unlock()
+
+		return slices.Contains(s.guildDeletes, guildID)
 	}, time.Second, time.Millisecond*10)
 }
 

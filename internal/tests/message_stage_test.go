@@ -1,6 +1,7 @@
 package tests
 
 import (
+	"net/http"
 	"os"
 	"sync"
 	"testing"
@@ -88,8 +89,10 @@ func (s *MessageStage) the_message_can_be_fetched() *MessageStage {
 	return s
 }
 
-func (s *MessageStage) the_message_is_pinned() {
+func (s *MessageStage) the_message_is_pinned() *MessageStage {
 	s.require.NoError(s.session.ChannelMessagePin(s.channel.ID, s.messageID))
+
+	return s
 }
 
 func (s *MessageStage) the_message_has_been_pinned() {
@@ -147,10 +150,13 @@ func (s *MessageStage) an_attachment(filename, contentType string) {
 func (s *MessageStage) the_message_should_have_n_attachments(n int) *MessageStage {
 	s.require.Eventually(func() bool {
 		m, err := s.session.ChannelMessage(s.channel.ID, s.messageID)
+		if err != nil {
+			return false
+		}
 
 		s.attachments = m.Attachments
 
-		return err == nil && len(m.Attachments) == n
+		return len(m.Attachments) == n
 	}, defaultWait, defaultTick)
 
 	return s
@@ -213,8 +219,6 @@ func (s *MessageStage) we_listen_for_message_reaction_events() *MessageStage {
 }
 
 func (s *MessageStage) a_message_reaction_add_event_should_have_been_received_with_id_and_name(id, name string) {
-	// todo fix test
-	s.t.Skip("concurrency issue -- events are not received consistently")
 	s.require.Eventually(func() bool {
 		s.mu.Lock()
 		adds := s.adds
@@ -230,8 +234,6 @@ func (s *MessageStage) a_message_reaction_add_event_should_have_been_received_wi
 }
 
 func (s *MessageStage) a_message_reaction_remove_event_should_have_been_received_with_id_and_name(id, name string) {
-	// todo fix test
-	s.t.Skip("concurrency issue -- events are not received consistently")
 	s.require.Eventually(func() bool {
 		s.mu.Lock()
 		removes := s.removes
@@ -244,4 +246,62 @@ func (s *MessageStage) a_message_reaction_remove_event_should_have_been_received
 
 		return false
 	}, defaultWait, defaultTick)
+}
+
+func (s *MessageStage) the_message_is_unpinned() *MessageStage {
+	s.require.NoError(s.session.ChannelMessageUnpin(s.channel.ID, s.messageID))
+
+	return s
+}
+
+func (s *MessageStage) the_message_should_not_be_pinned() {
+	pinned, err := s.session.ChannelMessagesPinned(s.channel.ID)
+	s.require.NoError(err)
+
+	for _, message := range pinned {
+		s.require.NotEqual(s.messageID, message.ID)
+	}
+}
+
+func (s *MessageStage) the_message_is_deleted() *MessageStage {
+	s.require.NoError(s.session.ChannelMessageDelete(s.channel.ID, s.messageID))
+
+	return s
+}
+
+func (s *MessageStage) pinning_a_missing_message_should_fail() {
+	err := s.session.ChannelMessagePin(s.channel.ID, "1")
+
+	var restErr *discordgo.RESTError
+	s.require.ErrorAs(err, &restErr)
+	s.require.Equal(http.StatusNotFound, restErr.Response.StatusCode)
+}
+
+func (s *MessageStage) the_message_is_pinned_again() *MessageStage {
+	s.the_message_is_pinned()
+
+	return s
+}
+
+func (s *MessageStage) the_message_should_be_pinned_once() {
+	pinned, err := s.session.ChannelMessagesPinned(s.channel.ID)
+	s.require.NoError(err)
+
+	n := 0
+	for _, message := range pinned {
+		if message.ID == s.messageID {
+			n++
+		}
+	}
+
+	s.require.Equal(1, n)
+}
+
+func (s *MessageStage) the_first_attachment_should_have_its_size_set(filename string) {
+	s.require.NotEmpty(s.attachments)
+
+	info, err := os.Stat("files/" + filename)
+	s.require.NoError(err)
+
+	s.require.EqualValues(info.Size(), s.attachments[0].Size)
 }

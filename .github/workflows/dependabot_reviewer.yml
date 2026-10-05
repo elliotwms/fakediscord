@@ -1,8 +1,8 @@
 name: Dependabot reviewer
 on: pull_request_target
 permissions:
-  pull-requests: write
-  contents: write
+  contents: read
+  pull-requests: read
 jobs:
   review-dependabot-pr:
     runs-on: ubuntu-latest
@@ -10,15 +10,27 @@ jobs:
     steps:
       - name: Dependabot metadata
         id: dependabot-metadata
-        uses: dependabot/fetch-metadata@v2.5.0
-      - name: Enable auto-merge for Dependabot PRs
+        uses: dependabot/fetch-metadata@v3.1.0
+      # a GitHub App token rather than GITHUB_TOKEN, as merges with GITHUB_TOKEN don't trigger the release workflow.
+      # The App's credentials are managed in github.com/elliotwms/infra
+      - name: Create GitHub App token
+        id: app-token
+        if: ${{steps.dependabot-metadata.outputs.update-type == 'version-update:semver-patch' || steps.dependabot-metadata.outputs.update-type == 'version-update:semver-minor'}}
+        uses: actions/create-github-app-token@v3.2.0
+        with:
+          client-id: ${{ vars.DEPENDABOT_REVIEWER_CLIENT_ID }}
+          private-key: ${{ secrets.DEPENDABOT_REVIEWER_PRIVATE_KEY }}
+          permission-contents: write
+          permission-pull-requests: write
+      - name: Enable auto-merge for patch and minor updates
+        if: ${{steps.dependabot-metadata.outputs.update-type == 'version-update:semver-patch' || steps.dependabot-metadata.outputs.update-type == 'version-update:semver-minor'}}
         run: gh pr merge --auto --squash "$PR_URL"
         env:
           PR_URL: ${{github.event.pull_request.html_url}}
-          GITHUB_TOKEN: ${{secrets.DEPENDABOT_REVIEWER_PAT}}
+          GITHUB_TOKEN: ${{steps.app-token.outputs.token}}
       - name: Approve patch and minor updates
         if: ${{steps.dependabot-metadata.outputs.update-type == 'version-update:semver-patch' || steps.dependabot-metadata.outputs.update-type == 'version-update:semver-minor'}}
         run: gh pr review $PR_URL --approve -b "I'm **approving** this pull request because **it includes a patch or minor update**"
         env:
           PR_URL: ${{github.event.pull_request.html_url}}
-          GITHUB_TOKEN: ${{secrets.DEPENDABOT_REVIEWER_PAT}}
+          GITHUB_TOKEN: ${{steps.app-token.outputs.token}}
