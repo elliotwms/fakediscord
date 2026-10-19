@@ -16,7 +16,7 @@ jobs:
       - name: Create GitHub App token
         id: app-token
         if: ${{steps.dependabot-metadata.outputs.update-type == 'version-update:semver-patch' || steps.dependabot-metadata.outputs.update-type == 'version-update:semver-minor'}}
-        uses: actions/create-github-app-token@v3.2.0
+        uses: actions/create-github-app-token@v3.3.0
         with:
           client-id: ${{ vars.DEPENDABOT_REVIEWER_CLIENT_ID }}
           private-key: ${{ secrets.DEPENDABOT_REVIEWER_PRIVATE_KEY }}
